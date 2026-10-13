@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: cloud-warehouse
+  profiles:
+    default: mysql
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+
+server:
+  port: 8080
+
+springdoc:
+  swagger-ui:
+    urls:
+      - name: V1.0 最终接口契约
+        url: /openapi/yuncang-openapi.json
+      - name: 已实现接口（可调试）
+        url: /v3/api-docs
+    urls-primary-name: V1.0 最终接口契约
+
+knife4j:
+  setting:
+    language: zh_cn
+
+app:
+  notifications:
+    enabled: ${NOTIFICATIONS_ENABLED:false}
+    exchange: ${NOTIFICATIONS_EXCHANGE:yuncang.stock-alert}
+    queue: ${NOTIFICATIONS_QUEUE:yuncang.stock-alert.notification}
+    publish-interval-ms: ${NOTIFICATIONS_PUBLISH_INTERVAL_MS:5000}
+  stock-cache:
+    enabled: ${STOCK_CACHE_ENABLED:false}
+    ttl: ${STOCK_CACHE_TTL:PT5M}
+    jitter: ${STOCK_CACHE_JITTER:PT30S}

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yuncang.biz.mapper.StockAlertMapper">
+    <resultMap id="alertMap" type="com.yuncang.biz.entity.StockAlert">
+        <id column="id" property="id"/>
+        <result column="warehouse_id" property="warehouseId"/>
+        <result column="sku_id" property="skuId"/>
+        <result column="available_stock" property="availableStock"/>
+        <result column="safety_stock" property="safetyStock"/>
+        <result column="status" property="status"/>
+        <result column="triggered_at" property="triggeredAt"/>
+        <result column="resolved_at" property="resolvedAt"/>
+    </resultMap>
+    <select id="findByWarehouseAndSku" resultMap="alertMap">
+        SELECT * FROM stock_alert WHERE warehouse_id = #{warehouseId} AND sku_id = #{skuId}
+    </select>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO stock_alert (warehouse_id, sku_id, available_stock, safety_stock,
+                                 status, triggered_at, resolved_at)
+        VALUES (#{warehouseId}, #{skuId}, #{availableStock}, #{safetyStock},
+                #{status}, #{triggeredAt}, #{resolvedAt})
+    </insert>
+    <update id="update">
+        UPDATE stock_alert SET available_stock = #{availableStock}, safety_stock = #{safetyStock},
+            status = #{status}, triggered_at = #{triggeredAt}, resolved_at = #{resolvedAt},
+            updated_at = CURRENT_TIMESTAMP(3)
+        WHERE id = #{id}
+    </update>
+    <select id="list" resultMap="alertMap">
+        SELECT * FROM stock_alert
+        <where>
+            <if test="warehouseId != null">AND warehouse_id = #{warehouseId}</if>
+            <if test="skuId != null">AND sku_id = #{skuId}</if>
+            <if test="status != null">AND status = #{status}</if>
+        </where>
+        ORDER BY triggered_at DESC, id DESC
+    </select>
+</mapper>

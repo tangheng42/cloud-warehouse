@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yuncang.biz.mapper.TransferMapper">
+    <resultMap id="orderMap" type="com.yuncang.biz.entity.TransferOrder">
+        <id column="id" property="id"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="source_warehouse_id" property="sourceWarehouseId"/>
+        <result column="target_warehouse_id" property="targetWarehouseId"/>
+        <result column="status" property="status"/>
+        <result column="remark" property="remark"/>
+        <result column="created_by" property="createdBy"/>
+        <result column="reserved_by" property="reservedBy"/>
+        <result column="reserved_at" property="reservedAt"/>
+        <result column="released_by" property="releasedBy"/>
+        <result column="released_at" property="releasedAt"/>
+        <result column="dispatched_by" property="dispatchedBy"/>
+        <result column="dispatched_at" property="dispatchedAt"/>
+        <result column="received_by" property="receivedBy"/>
+        <result column="received_at" property="receivedAt"/>
+        <result column="cancelled_by" property="cancelledBy"/>
+        <result column="cancelled_at" property="cancelledAt"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+    <resultMap id="itemMap" type="com.yuncang.biz.entity.TransferOrderItem">
+        <id column="id" property="id"/>
+        <result column="order_id" property="orderId"/>
+        <result column="sku_id" property="skuId"/>
+        <result column="quantity" property="quantity"/>
+    </resultMap>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO transfer_order (order_no, source_warehouse_id, target_warehouse_id, status, remark, created_by)
+        VALUES (#{orderNo}, #{sourceWarehouseId}, #{targetWarehouseId}, #{status}, #{remark}, #{createdBy})
+    </insert>
+    <insert id="insertItem" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO transfer_order_item (order_id, sku_id, quantity)
+        VALUES (#{orderId}, #{skuId}, #{quantity})
+    </insert>
+    <select id="findById" resultMap="orderMap">
+        SELECT * FROM transfer_order WHERE id = #{id}
+    </select>
+    <select id="findForUpdate" resultMap="orderMap">
+        SELECT * FROM transfer_order WHERE id = #{id} FOR UPDATE
+    </select>
+    <select id="list" resultMap="orderMap">
+        SELECT * FROM transfer_order
+        <where>
+            <if test="sourceWarehouseId != null">AND source_warehouse_id = #{sourceWarehouseId}</if>
+            <if test="targetWarehouseId != null">AND target_warehouse_id = #{targetWarehouseId}</if>
+            <if test="status != null">AND status = #{status}</if>
+        </where>
+        ORDER BY created_at DESC, id DESC
+    </select>
+    <select id="findItemsByOrderId" resultMap="itemMap">
+        SELECT id, order_id, sku_id, quantity FROM transfer_order_item
+        WHERE order_id = #{orderId} ORDER BY id
+    </select>
+    <select id="findItemsByOrderIds" resultMap="itemMap">
+        SELECT id, order_id, sku_id, quantity FROM transfer_order_item
+        WHERE order_id IN
+        <foreach collection="orderIds" item="orderId" open="(" separator="," close=")">#{orderId}</foreach>
+        ORDER BY order_id, id
+    </select>
+    <update id="markReserved">
+        UPDATE transfer_order SET status = 'RESERVED', reserved_by = #{userId},
+            reserved_at = CURRENT_TIMESTAMP(3), updated_at = CURRENT_TIMESTAMP(3)
+        WHERE id = #{id} AND status = 'CREATED'
+    </update>
+    <update id="markReleased">
+        UPDATE transfer_order SET status = 'CREATED', released_by = #{userId},
+            released_at = CURRENT_TIMESTAMP(3), updated_at = CURRENT_TIMESTAMP(3)
+        WHERE id = #{id} AND status = 'RESERVED'
+    </update>
+    <update id="markDispatched">
+        UPDATE transfer_order SET status = 'IN_TRANSIT', dispatched_by = #{userId},
+            dispatched_at = CURRENT_TIMESTAMP(3), updated_at = CURRENT_TIMESTAMP(3)
+        WHERE id = #{id} AND status = 'RESERVED'
+    </update>
+    <update id="markReceived">
+        UPDATE transfer_order SET status = 'COMPLETED', received_by = #{userId},
+            received_at = CURRENT_TIMESTAMP(3), updated_at = CURRENT_TIMESTAMP(3)
+        WHERE id = #{id} AND status = 'IN_TRANSIT'
+    </update>
+    <update id="markCancelled">
+        UPDATE transfer_order SET status = 'CANCELLED', cancelled_by = #{userId},
+            cancelled_at = CURRENT_TIMESTAMP(3), updated_at = CURRENT_TIMESTAMP(3)
+        WHERE id = #{id} AND status = 'CREATED'
+    </update>
+</mapper>

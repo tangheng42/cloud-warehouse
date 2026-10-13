@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${MYSQL_TEST_URL:}
+    username: ${MYSQL_TEST_USERNAME:}
+    password: ${MYSQL_TEST_PASSWORD:}
+  sql:
+    init:
+      mode: never
+
+mybatis:
+  mapper-locations: classpath*:mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+
+pagehelper:
+  helper-dialect: mysql
+
+app:
+  stock-cache:
+    enabled: false
+  jwt:
+    secret: mysql-acceptance-only-secret-at-least-thirty-two-characters
+    ttl-hours: 8

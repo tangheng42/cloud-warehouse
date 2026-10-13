@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:yuncangtest;MODE=MySQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ''
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:test-schema.sql,classpath:test-business-schema.sql
+      data-locations: classpath:test-data.sql
+
+mybatis:
+  mapper-locations: classpath*:mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+
+pagehelper:
+  helper-dialect: mysql
+
+app:
+  jwt:
+    secret: test-only-secret-at-least-thirty-two-characters-long
+    ttl-hours: 8

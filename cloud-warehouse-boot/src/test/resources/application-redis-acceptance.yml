@@ -1,0 +1,14 @@
+spring:
+  data:
+    redis:
+      host: ${REDIS_TEST_HOST:127.0.0.1}
+      port: ${REDIS_TEST_PORT:6379}
+      password: ${REDIS_TEST_PASSWORD:}
+      database: ${REDIS_TEST_DATABASE:15}
+      timeout: 500ms
+
+app:
+  stock-cache:
+    enabled: true
+    ttl: PT2S
+    jitter: PT1S

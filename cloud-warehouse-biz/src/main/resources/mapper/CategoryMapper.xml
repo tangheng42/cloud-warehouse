@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yuncang.biz.mapper.CategoryMapper">
+    <resultMap id="categoryMap" type="com.yuncang.biz.entity.SkuCategory">
+        <id column="id" property="id"/>
+        <result column="code" property="code"/>
+        <result column="name" property="name"/>
+        <result column="enabled" property="enabled"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+    <select id="findById" resultMap="categoryMap">
+        SELECT id, code, name, enabled, created_at, updated_at FROM sku_category WHERE id = #{id}
+    </select>
+    <select id="findForUpdate" resultMap="categoryMap">
+        SELECT id, code, name, enabled, created_at, updated_at FROM sku_category WHERE id = #{id} FOR UPDATE
+    </select>
+    <select id="list" resultMap="categoryMap">
+        SELECT id, code, name, enabled, created_at, updated_at FROM sku_category
+        <where>
+            <if test="name != null and name != ''">AND name LIKE CONCAT('%', #{name}, '%')</if>
+            <if test="enabled != null">AND enabled = #{enabled}</if>
+        </where>
+        ORDER BY created_at DESC, id DESC
+    </select>
+    <insert id="insert" parameterType="com.yuncang.biz.entity.SkuCategory" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sku_category (code, name, enabled) VALUES (#{code}, #{name}, 1)
+    </insert>
+    <update id="update" parameterType="com.yuncang.biz.entity.SkuCategory">
+        UPDATE sku_category SET name = #{name} WHERE id = #{id}
+    </update>
+    <update id="setEnabled">
+        UPDATE sku_category SET enabled = #{enabled} WHERE id = #{id} AND enabled != #{enabled}
+    </update>
+</mapper>

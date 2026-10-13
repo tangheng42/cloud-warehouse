@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yuncang.biz.mapper.StockMapper">
+    <resultMap id="stockMap" type="com.yuncang.biz.entity.WarehouseStock">
+        <id column="id" property="id"/>
+        <result column="warehouse_id" property="warehouseId"/>
+        <result column="sku_id" property="skuId"/>
+        <result column="physical_stock" property="physicalStock"/>
+        <result column="available_stock" property="availableStock"/>
+        <result column="locked_stock" property="lockedStock"/>
+        <result column="safety_stock" property="safetyStock"/>
+    </resultMap>
+    <select id="findByWarehouseAndSku" resultMap="stockMap">
+        SELECT ws.id, ws.warehouse_id, ws.sku_id, ws.physical_stock, ws.available_stock, ws.locked_stock,
+               s.safety_stock
+        FROM warehouse_stock ws JOIN sku s ON s.id = ws.sku_id
+        WHERE ws.warehouse_id = #{warehouseId} AND ws.sku_id = #{skuId}
+    </select>
+    <select id="list" resultMap="stockMap">
+        SELECT ws.id, ws.warehouse_id, ws.sku_id, ws.physical_stock, ws.available_stock, ws.locked_stock,
+               s.safety_stock
+        FROM warehouse_stock ws JOIN sku s ON s.id = ws.sku_id
+        <where>
+            <if test="warehouseId != null">AND ws.warehouse_id = #{warehouseId}</if>
+            <if test="skuId != null">AND ws.sku_id = #{skuId}</if>
+        </where>
+        ORDER BY ws.created_at DESC, ws.id DESC
+    </select>
+    <select id="listBySku" resultMap="stockMap">
+        SELECT ws.id, ws.warehouse_id, ws.sku_id, ws.physical_stock, ws.available_stock,
+               ws.locked_stock, s.safety_stock
+        FROM warehouse_stock ws JOIN sku s ON s.id = ws.sku_id
+        WHERE ws.sku_id = #{skuId} ORDER BY ws.warehouse_id
+    </select>
+
+    <select id="findForUpdate"
+            resultMap="stockMap">
+
+        SELECT id,
+        warehouse_id,
+        sku_id,
+        physical_stock,
+        available_stock,
+        locked_stock
+        FROM warehouse_stock
+        WHERE warehouse_id = #{warehouseId}
+        AND sku_id = #{skuId}
+        FOR UPDATE
+
+    </select>
+    <insert id="inboundUpsert">
+
+        INSERT INTO warehouse_stock (
+        warehouse_id,
+        sku_id,
+        physical_stock,
+        available_stock,
+        locked_stock
+        )
+        VALUES (
+        #{warehouseId},
+        #{skuId},
+        #{quantity},
+        #{quantity},
+        0
+        )
+
+        ON DUPLICATE KEY UPDATE
+        physical_stock = physical_stock + #{quantity},
+        available_stock = available_stock + #{quantity}
+
+    </insert>
+
+    <update id="reserve">
+        UPDATE warehouse_stock
+
+        SET available_stock = available_stock - #{quantity},
+        locked_stock = locked_stock + #{quantity}
+
+        WHERE warehouse_id = #{warehouseId}
+        AND sku_id = #{skuId}
+        AND available_stock >= #{quantity}
+    </update>
+
+    <update id="release">
+        UPDATE warehouse_stock
+        SET available_stock = available_stock + #{quantity},
+        locked_stock = locked_stock - #{quantity}
+        WHERE warehouse_id = #{warehouseId}
+        AND sku_id = #{skuId}
+        AND locked_stock >= #{quantity}
+    </update>
+
+    <update id="confirmOutbound">
+        UPDATE warehouse_stock
+        SET physical_stock = physical_stock - #{quantity},
+        locked_stock = locked_stock - #{quantity}
+        WHERE warehouse_id = #{warehouseId}
+        AND sku_id = #{skuId}
+        AND physical_stock >= #{quantity}
+        AND locked_stock >= #{quantity}
+    </update>
+    <update id="adjustStocktake">
+        UPDATE warehouse_stock
+        SET physical_stock = physical_stock + #{delta},
+            available_stock = available_stock + #{delta}
+        WHERE warehouse_id = #{warehouseId} AND sku_id = #{skuId}
+          AND physical_stock = #{physical} AND available_stock = #{available}
+          AND locked_stock = #{locked} AND available_stock + #{delta} &gt;= 0
+    </update>
+</mapper>

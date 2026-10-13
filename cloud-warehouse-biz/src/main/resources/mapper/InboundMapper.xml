@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.yuncang.biz.mapper.InboundMapper">
+
+    <resultMap id="inboundOrderMap"
+               type="com.yuncang.biz.entity.InboundOrder">
+
+        <id column="id" property="id"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="warehouse_id" property="warehouseId"/>
+        <result column="status" property="status"/>
+        <result column="remark" property="remark"/>
+        <result column="created_by" property="createdBy"/>
+
+        <result column="confirmed_by" property="confirmedBy"/>
+        <result column="confirmed_at" property="confirmedAt"/>
+
+        <result column="cancelled_by" property="cancelledBy"/>
+        <result column="cancelled_at" property="cancelledAt"/>
+
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+
+    </resultMap>
+
+
+    <resultMap id="inboundItemMap"
+               type="com.yuncang.biz.entity.InboundOrderItem">
+
+        <id column="id" property="id"/>
+        <result column="order_id" property="orderId"/>
+        <result column="sku_id" property="skuId"/>
+        <result column="quantity" property="quantity"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+
+    </resultMap>
+
+
+    <insert id="insert"
+            parameterType="com.yuncang.biz.entity.InboundOrder"
+            useGeneratedKeys="true"
+            keyProperty="id">
+
+        INSERT INTO inbound_order (
+        order_no,
+        warehouse_id,
+        status,
+        remark,
+        created_by
+        )
+        VALUES (
+        #{orderNo},
+        #{warehouseId},
+        #{status},
+        #{remark},
+        #{createdBy}
+        )
+
+    </insert>
+
+
+    <insert id="insertItem"
+            parameterType="com.yuncang.biz.entity.InboundOrderItem"
+            useGeneratedKeys="true"
+            keyProperty="id">
+
+        INSERT INTO inbound_order_item (
+        order_id,
+        sku_id,
+        quantity
+        )
+        VALUES (
+        #{orderId},
+        #{skuId},
+        #{quantity}
+        )
+
+    </insert>
+
+
+    <select id="findById"
+            resultMap="inboundOrderMap">
+
+        SELECT id,
+        order_no,
+        warehouse_id,
+        status,
+        remark,
+        created_by,
+        confirmed_by,
+        confirmed_at,
+        cancelled_by,
+        cancelled_at,
+        created_at,
+        updated_at
+        FROM inbound_order
+        WHERE id = #{id}
+
+    </select>
+
+
+    <select id="findItemsByOrderId"
+            resultMap="inboundItemMap">
+
+        SELECT id,
+        order_id,
+        sku_id,
+        quantity,
+        created_at,
+        updated_at
+        FROM inbound_order_item
+        WHERE order_id = #{orderId}
+        ORDER BY id
+
+    </select>
+
+    <select id="findItemsByOrderIds" resultMap="inboundItemMap">
+        SELECT id, order_id, sku_id, quantity, created_at, updated_at
+        FROM inbound_order_item WHERE order_id IN
+        <foreach collection="orderIds" item="orderId" open="(" separator="," close=")">#{orderId}</foreach>
+        ORDER BY order_id, id
+    </select>
+
+    <select id="findForUpdate"
+            resultMap="inboundOrderMap">
+
+        SELECT id,
+        order_no,
+        warehouse_id,
+        status,
+        remark,
+        created_by,
+        confirmed_by,
+        confirmed_at,
+        cancelled_by,
+        cancelled_at,
+        created_at,
+        updated_at
+        FROM inbound_order
+        WHERE id = #{id}
+        FOR UPDATE
+
+    </select>
+
+    <select id="list" resultMap="inboundOrderMap">
+        SELECT * FROM inbound_order
+        <where>
+            <if test="warehouseId != null">AND warehouse_id = #{warehouseId}</if>
+            <if test="status != null">AND status = #{status}</if>
+        </where>
+        ORDER BY created_at DESC, id DESC
+    </select>
+
+    <update id="cancel">
+        UPDATE inbound_order SET status = 'CANCELLED', cancelled_by = #{cancelledBy},
+            cancelled_at = CURRENT_TIMESTAMP(3), updated_at = CURRENT_TIMESTAMP(3)
+        WHERE id = #{id} AND status = 'PENDING'
+    </update>
+
+    <update id="complete">
+
+        UPDATE inbound_order
+
+        SET status = 'COMPLETED',
+        confirmed_by = #{confirmedBy},
+        confirmed_at = CURRENT_TIMESTAMP(3)
+
+        WHERE id = #{id}
+        AND status = 'PENDING'
+
+    </update>
+</mapper>

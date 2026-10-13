@@ -1,0 +1,19 @@
+spring:
+  rabbitmq:
+    host: ${RABBIT_TEST_HOST:127.0.0.1}
+    port: ${RABBIT_TEST_PORT:5672}
+    username: ${RABBIT_TEST_USERNAME:guest}
+    password: ${RABBIT_TEST_PASSWORD:guest}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+    listener:
+      simple:
+        default-requeue-rejected: false
+app:
+  notifications:
+    enabled: true
+    exchange: ${RABBIT_TEST_EXCHANGE:yuncang.acceptance.test}
+    queue: ${RABBIT_TEST_QUEUE:yuncang.acceptance.test.notification}
+    publish-interval-ms: 600000

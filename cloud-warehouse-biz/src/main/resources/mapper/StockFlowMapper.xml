@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yuncang.biz.mapper.StockFlowMapper">
+    <resultMap id="flowMap" type="com.yuncang.biz.entity.StockFlow">
+        <id column="id" property="id"/>
+        <result column="warehouse_id" property="warehouseId"/>
+        <result column="sku_id" property="skuId"/>
+        <result column="biz_type" property="bizType"/>
+        <result column="biz_id" property="bizId"/>
+        <result column="flow_type" property="flowType"/>
+        <result column="delta_physical" property="deltaPhysical"/>
+        <result column="delta_available" property="deltaAvailable"/>
+        <result column="delta_locked" property="deltaLocked"/>
+        <result column="before_physical" property="beforePhysical"/>
+        <result column="before_available" property="beforeAvailable"/>
+        <result column="before_locked" property="beforeLocked"/>
+        <result column="after_physical" property="afterPhysical"/>
+        <result column="after_available" property="afterAvailable"/>
+        <result column="after_locked" property="afterLocked"/>
+        <result column="operator_id" property="operatorId"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+    <select id="findById" resultMap="flowMap">
+        SELECT * FROM stock_flow WHERE id = #{id}
+    </select>
+    <select id="list" resultMap="flowMap">
+        SELECT * FROM stock_flow
+        <where>
+            <if test="warehouseId != null">AND warehouse_id = #{warehouseId}</if>
+            <if test="skuId != null">AND sku_id = #{skuId}</if>
+            <if test="bizType != null">AND biz_type = #{bizType}</if>
+            <if test="bizId != null">AND biz_id = #{bizId}</if>
+            <if test="flowType != null">AND flow_type = #{flowType}</if>
+        </where>
+        ORDER BY created_at DESC, id DESC
+    </select>
+
+    <insert id="insert"
+            parameterType="com.yuncang.biz.entity.StockFlow"
+            useGeneratedKeys="true"
+            keyProperty="id">
+
+        INSERT INTO stock_flow (
+        warehouse_id,
+        sku_id,
+        biz_type,
+        biz_id,
+        flow_type,
+
+        delta_physical,
+        delta_available,
+        delta_locked,
+
+        before_physical,
+        before_available,
+        before_locked,
+
+        after_physical,
+        after_available,
+        after_locked,
+
+        operator_id
+        )
+        VALUES (
+        #{warehouseId},
+        #{skuId},
+        #{bizType},
+        #{bizId},
+        #{flowType},
+
+        #{deltaPhysical},
+        #{deltaAvailable},
+        #{deltaLocked},
+
+        #{beforePhysical},
+        #{beforeAvailable},
+        #{beforeLocked},
+
+        #{afterPhysical},
+        #{afterAvailable},
+        #{afterLocked},
+
+        #{operatorId}
+        )
+
+    </insert>
+</mapper>

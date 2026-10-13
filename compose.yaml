@@ -1,0 +1,26 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_DATABASE: yuncang
+      TZ: UTC
+    ports:
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docs/sql/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./docs/sql/03-v1-business-schema.sql:/docker-entrypoint-initdb.d/02-v1-business-schema.sql:ro
+      - ./docs/sql/02-demo-data.sql:/docker-entrypoint-initdb.d/03-demo-data.sql:ro
+
+  redis:
+    image: redis:7.2-alpine
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  mysql_data:
+  redis_data:

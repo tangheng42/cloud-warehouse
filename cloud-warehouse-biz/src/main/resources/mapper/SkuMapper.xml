@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yuncang.biz.mapper.SkuMapper">
+    <resultMap id="skuMap" type="com.yuncang.biz.entity.Sku">
+        <id column="id" property="id"/>
+        <result column="code" property="code"/>
+        <result column="name" property="name"/>
+        <result column="category_id" property="categoryId"/>
+        <result column="unit" property="unit"/>
+        <result column="safety_stock" property="safetyStock"/>
+        <result column="enabled" property="enabled"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+    <select id="findById" resultMap="skuMap">
+        SELECT id, code, name, category_id, unit, safety_stock, enabled, created_at, updated_at FROM sku WHERE id = #{id}
+    </select>
+    <select id="findForUpdate" resultMap="skuMap">
+        SELECT id, code, name, category_id, unit, safety_stock, enabled, created_at, updated_at
+        FROM sku WHERE id = #{id} FOR UPDATE
+    </select>
+    <select id="list" resultMap="skuMap">
+        SELECT id, code, name, category_id, unit, safety_stock, enabled, created_at, updated_at FROM sku
+        <where>
+            <if test="code != null and code != ''">AND code = #{code}</if>
+            <if test="name != null and name != ''">AND name LIKE CONCAT('%', #{name}, '%')</if>
+            <if test="categoryId != null">AND category_id = #{categoryId}</if>
+            <if test="enabled != null">AND enabled = #{enabled}</if>
+        </where>
+        ORDER BY created_at DESC, id DESC
+    </select>
+    <select id="countEnabledByCategory" resultType="long">
+        SELECT COUNT(*) FROM sku WHERE category_id = #{categoryId} AND enabled = 1
+    </select>
+    <insert id="insert" parameterType="com.yuncang.biz.entity.Sku" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sku (code, name, category_id, unit, safety_stock, enabled)
+        VALUES (#{code}, #{name}, #{categoryId}, #{unit}, #{safetyStock}, 1)
+    </insert>
+    <update id="update" parameterType="com.yuncang.biz.entity.Sku">
+        UPDATE sku SET name = #{name}, category_id = #{categoryId}, unit = #{unit}, safety_stock = #{safetyStock}
+        WHERE id = #{id}
+    </update>
+    <update id="setEnabled">
+        UPDATE sku SET enabled = #{enabled} WHERE id = #{id} AND enabled != #{enabled}
+    </update>
+</mapper>

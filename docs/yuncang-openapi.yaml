@@ -1,0 +1,4941 @@
+openapi: 3.0.3
+info:
+  title: 云仓智配 V1.0 API
+  version: 1.0.0
+  description: |
+    多仓库存与调拨协同平台接口最高契约。库存只通过业务单据动作变化；数量为整数；所有动作整单原子执行。业务详细规则见 V1.0-项目设计.md。
+    所有接口的通用错误码包括 VALIDATION_ERROR(400)、UNAUTHENTICATED(401)、FORBIDDEN(403)、NOT_FOUND(404)。库存写入发生死锁或锁等待失败时返回可重试的 STOCK_BUSY(409)，整单事务回滚。
+    Java 后端已实现本契约的全部 V1.0 接口；所有库存变更和流水、预警刷新在同一事务内完成。
+servers:
+- url: /api/v1
+tags:
+- name: 认证
+- name: 仓库
+- name: 分类
+- name: SKU
+- name: 库存
+- name: 入库
+- name: 出库
+- name: 调拨
+- name: 库存流水
+- name: 盘点
+- name: 库存预警
+paths:
+  /auth/login:
+    post:
+      tags:
+      - 认证
+      summary: 用户名密码登录
+      operationId: postAuthLogin
+      x-roles: []
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors:
+      - INVALID_CREDENTIALS
+      - USER_DISABLED
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiLogin'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginDTO'
+      security: []
+  /auth/me:
+    get:
+      tags:
+      - 认证
+      summary: 当前用户
+      operationId: getAuthMe
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiUser'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - bearerAuth: []
+  /warehouses:
+    post:
+      tags:
+      - 仓库
+      summary: 新增仓库
+      operationId: postWarehouses
+      x-roles:
+      - ADMIN
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors:
+      - DUPLICATE_CODE
+      responses:
+        '201':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiWarehouse'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WarehouseCreateDTO'
+      security:
+      - bearerAuth: []
+    get:
+      tags:
+      - 仓库
+      summary: 分页查询仓库
+      operationId: getWarehouses
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiPageWarehouse'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: code
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: name
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: enabled
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      security:
+      - bearerAuth: []
+  /warehouses/{id}:
+    get:
+      tags:
+      - 仓库
+      summary: 仓库详情
+      operationId: getWarehousesId
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiWarehouse'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      security:
+      - bearerAuth: []
+    put:
+      tags:
+      - 仓库
+      summary: 修改仓库
+      operationId: putWarehousesId
+      x-roles:
+      - ADMIN
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiWarehouse'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WarehouseUpdateDTO'
+      security:
+      - bearerAuth: []
+  /warehouses/{id}/enable:
+    post:
+      tags:
+      - 仓库
+      summary: 启用仓库
+      operationId: postWarehousesIdEnable
+      x-roles:
+      - ADMIN
+      x-state-precondition: 当前为停用
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors:
+      - ORDER_STATE_CONFLICT
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiWarehouse'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      security:
+      - bearerAuth: []
+  /warehouses/{id}/disable:
+    post:
+      tags:
+      - 仓库
+      summary: 停用仓库
+      operationId: postWarehousesIdDisable
+      x-roles:
+      - ADMIN
+      x-state-precondition: 当前为启用
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors:
+      - ORDER_STATE_CONFLICT
+      - ACTIVE_ORDER_EXISTS
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiWarehouse'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      security:
+      - bearerAuth: []
+  /sku-categories:
+    post:
+      tags:
+      - 分类
+      summary: 新增分类
+      operationId: postSkuCategories
+      x-roles:
+      - ADMIN
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors:
+      - DUPLICATE_CODE
+      responses:
+        '201':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiCategory'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryCreateDTO'
+      security:
+      - bearerAuth: []
+    get:
+      tags:
+      - 分类
+      summary: 分页查询分类
+      operationId: getSkuCategories
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiPageCategory'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: name
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: enabled
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      security:
+      - bearerAuth: []
+  /sku-categories/{id}:
+    get:
+      tags:
+      - 分类
+      summary: 分类详情
+      operationId: getSkuCategoriesId
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiCategory'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      security:
+      - bearerAuth: []
+    put:
+      tags:
+      - 分类
+      summary: 修改分类
+      operationId: putSkuCategoriesId
+      x-roles:
+      - ADMIN
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiCategory'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryUpdateDTO'
+      security:
+      - bearerAuth: []
+  /sku-categories/{id}/enable:
+    post:
+      tags:
+      - 分类
+      summary: 启用分类
+      operationId: postSkuCategoriesIdEnable
+      x-roles:
+      - ADMIN
+      x-state-precondition: 当前为停用
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors:
+      - ORDER_STATE_CONFLICT
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiCategory'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      security:
+      - bearerAuth: []
+  /sku-categories/{id}/disable:
+    post:
+      tags:
+      - 分类
+      summary: 停用分类
+      operationId: postSkuCategoriesIdDisable
+      x-roles:
+      - ADMIN
+      x-state-precondition: 当前为启用
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors:
+      - ORDER_STATE_CONFLICT
+      - ACTIVE_SKU_EXISTS
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiCategory'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      security:
+      - bearerAuth: []
+  /skus:
+    post:
+      tags:
+      - SKU
+      summary: 新增SKU
+      operationId: postSkus
+      x-roles:
+      - ADMIN
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors:
+      - DUPLICATE_CODE
+      - RESOURCE_DISABLED
+      responses:
+        '201':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSku'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SkuCreateDTO'
+      security:
+      - bearerAuth: []
+    get:
+      tags:
+      - SKU
+      summary: 分页查询SKU
+      operationId: getSkus
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiPageSku'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: code
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: name
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: categoryId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      - name: enabled
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      security:
+      - bearerAuth: []
+  /skus/{id}:
+    get:
+      tags:
+      - SKU
+      summary: SKU详情
+      operationId: getSkusId
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSku'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      security:
+      - bearerAuth: []
+    put:
+      tags:
+      - SKU
+      summary: 修改SKU
+      operationId: putSkusId
+      x-roles:
+      - ADMIN
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors:
+      - RESOURCE_DISABLED
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSku'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SkuUpdateDTO'
+      security:
+      - bearerAuth: []
+  /skus/{id}/enable:
+    post:
+      tags:
+      - SKU
+      summary: 启用SKU
+      operationId: postSkusIdEnable
+      x-roles:
+      - ADMIN
+      x-state-precondition: 当前为停用
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors:
+      - ORDER_STATE_CONFLICT
+      - RESOURCE_DISABLED
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSku'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      security:
+      - bearerAuth: []
+  /skus/{id}/disable:
+    post:
+      tags:
+      - SKU
+      summary: 停用SKU
+      operationId: postSkusIdDisable
+      x-roles:
+      - ADMIN
+      x-state-precondition: 当前为启用
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors:
+      - ORDER_STATE_CONFLICT
+      - ACTIVE_ORDER_EXISTS
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSku'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      security:
+      - bearerAuth: []
+  /stocks:
+    get:
+      tags:
+      - 库存
+      summary: 分页查询已存在库存行
+      operationId: getStocks
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiPageStock'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: warehouseId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      - name: skuId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      security:
+      - bearerAuth: []
+  /stocks/warehouses/{warehouseId}/skus/{skuId}:
+    get:
+      tags:
+      - 库存
+      summary: 指定仓库 SKU 库存
+      operationId: getStocksWarehousesWarehouseidSkusSkuid
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiStock'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: warehouseId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      - name: skuId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      security:
+      - bearerAuth: []
+  /inbounds:
+    post:
+      tags:
+      - 入库
+      summary: 创建入库单
+      operationId: postInbounds
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors:
+      - DUPLICATE_SKU_LINE
+      - RESOURCE_DISABLED
+      responses:
+        '201':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiInbound'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InboundCreateDTO'
+      security:
+      - bearerAuth: []
+    get:
+      tags:
+      - 入库
+      summary: 分页查询入库单
+      operationId: getInbounds
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiPageInbound'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: warehouseId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - PENDING
+          - COMPLETED
+          - CANCELLED
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      security:
+      - bearerAuth: []
+  /inbounds/{id}:
+    get:
+      tags:
+      - 入库
+      summary: 入库单详情
+      operationId: getInboundsId
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiInbound'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      security:
+      - bearerAuth: []
+  /outbounds:
+    post:
+      tags:
+      - 出库
+      summary: 创建出库单
+      operationId: postOutbounds
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors:
+      - DUPLICATE_SKU_LINE
+      - RESOURCE_DISABLED
+      responses:
+        '201':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiOutbound'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OutboundCreateDTO'
+      security:
+      - bearerAuth: []
+    get:
+      tags:
+      - 出库
+      summary: 分页查询出库单
+      operationId: getOutbounds
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiPageOutbound'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: warehouseId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - CREATED
+          - RESERVED
+          - COMPLETED
+          - CANCELLED
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      security:
+      - bearerAuth: []
+  /outbounds/{id}:
+    get:
+      tags:
+      - 出库
+      summary: 出库单详情
+      operationId: getOutboundsId
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiOutbound'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      security:
+      - bearerAuth: []
+  /transfers:
+    post:
+      tags:
+      - 调拨
+      summary: 创建调拨单
+      operationId: postTransfers
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors:
+      - DUPLICATE_SKU_LINE
+      - RESOURCE_DISABLED
+      - SAME_WAREHOUSE
+      responses:
+        '201':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiTransfer'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferCreateDTO'
+      security:
+      - bearerAuth: []
+    get:
+      tags:
+      - 调拨
+      summary: 分页查询调拨单
+      operationId: getTransfers
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiPageTransfer'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: sourceWarehouseId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      - name: targetWarehouseId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - CREATED
+          - RESERVED
+          - IN_TRANSIT
+          - COMPLETED
+          - CANCELLED
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      security:
+      - bearerAuth: []
+  /transfers/{id}:
+    get:
+      tags:
+      - 调拨
+      summary: 调拨单详情
+      operationId: getTransfersId
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiTransfer'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      security:
+      - bearerAuth: []
+  /stocktakes:
+    post:
+      tags:
+      - 盘点
+      summary: 创建盘点单
+      operationId: postStocktakes
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors:
+      - DUPLICATE_SKU_LINE
+      - RESOURCE_DISABLED
+      - STOCK_ROW_NOT_FOUND
+      responses:
+        '201':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiStocktake'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StocktakeCreateDTO'
+      security:
+      - bearerAuth: []
+    get:
+      tags:
+      - 盘点
+      summary: 分页查询盘点单
+      operationId: getStocktakes
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiPageStocktake'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: warehouseId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - DRAFT
+          - COMPLETED
+          - CANCELLED
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      security:
+      - bearerAuth: []
+  /stocktakes/{id}:
+    get:
+      tags:
+      - 盘点
+      summary: 盘点单详情
+      operationId: getStocktakesId
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiStocktake'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      security:
+      - bearerAuth: []
+  /inbounds/{id}/confirm:
+    post:
+      tags:
+      - 入库
+      summary: 确认实际入库
+      operationId: postInboundsIdConfirm
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: PENDING；仓库和 SKU 启用
+      x-inventory-effect: 目标仓每行 physical +q、available +q
+      x-stock-flow: INBOUND
+      x-business-errors:
+      - ORDER_STATE_CONFLICT
+      - RESOURCE_DISABLED
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiInbound'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      security:
+      - bearerAuth: []
+  /inbounds/{id}/cancel:
+    post:
+      tags:
+      - 入库
+      summary: 取消入库
+      operationId: postInboundsIdCancel
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: PENDING
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors:
+      - ORDER_STATE_CONFLICT
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiInbound'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      security:
+      - bearerAuth: []
+  /outbounds/{id}/reserve:
+    post:
+      tags:
+      - 出库
+      summary: 预占出库库存
+      operationId: postOutboundsIdReserve
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: CREATED；仓库和 SKU 启用；每行 available >= q
+      x-inventory-effect: 源仓每行 available -q、locked +q
+      x-stock-flow: OUTBOUND_LOCK
+      x-business-errors:
+      - ORDER_STATE_CONFLICT
+      - INSUFFICIENT_AVAILABLE_STOCK
+      - RESOURCE_DISABLED
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiOutbound'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      security:
+      - bearerAuth: []
+  /outbounds/{id}/release:
+    post:
+      tags:
+      - 出库
+      summary: 释放出库预占
+      operationId: postOutboundsIdRelease
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: RESERVED
+      x-inventory-effect: 源仓每行 available +q、locked -q
+      x-stock-flow: OUTBOUND_RELEASE
+      x-business-errors:
+      - ORDER_STATE_CONFLICT
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiOutbound'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      security:
+      - bearerAuth: []
+  /outbounds/{id}/confirm:
+    post:
+      tags:
+      - 出库
+      summary: 确认出库
+      operationId: postOutboundsIdConfirm
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: RESERVED；仓库和 SKU 启用
+      x-inventory-effect: 源仓每行 physical -q、locked -q；available 不变
+      x-stock-flow: OUTBOUND
+      x-business-errors:
+      - ORDER_STATE_CONFLICT
+      - RESOURCE_DISABLED
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiOutbound'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      security:
+      - bearerAuth: []
+  /outbounds/{id}/cancel:
+    post:
+      tags:
+      - 出库
+      summary: 取消出库
+      operationId: postOutboundsIdCancel
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: CREATED 或 RESERVED
+      x-inventory-effect: RESERVED 时 available +q、locked -q；CREATED 无变化
+      x-stock-flow: RESERVED 时 OUTBOUND_RELEASE
+      x-business-errors:
+      - ORDER_STATE_CONFLICT
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiOutbound'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      security:
+      - bearerAuth: []
+  /transfers/{id}/reserve:
+    post:
+      tags:
+      - 调拨
+      summary: 预占源仓库存
+      operationId: postTransfersIdReserve
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: CREATED；两仓和 SKU 启用；每行 available >= q
+      x-inventory-effect: 源仓每行 available -q、locked +q
+      x-stock-flow: TRANSFER_LOCK
+      x-business-errors:
+      - ORDER_STATE_CONFLICT
+      - INSUFFICIENT_AVAILABLE_STOCK
+      - RESOURCE_DISABLED
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiTransfer'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      security:
+      - bearerAuth: []
+  /transfers/{id}/release:
+    post:
+      tags:
+      - 调拨
+      summary: 释放源仓预占
+      operationId: postTransfersIdRelease
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: RESERVED
+      x-inventory-effect: 源仓每行 available +q、locked -q
+      x-stock-flow: TRANSFER_RELEASE
+      x-business-errors:
+      - ORDER_STATE_CONFLICT
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiTransfer'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      security:
+      - bearerAuth: []
+  /transfers/{id}/dispatch:
+    post:
+      tags:
+      - 调拨
+      summary: 调拨发运
+      operationId: postTransfersIdDispatch
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: RESERVED；两仓和 SKU 启用
+      x-inventory-effect: 源仓每行 physical -q、locked -q；进入在途
+      x-stock-flow: TRANSFER_OUT
+      x-business-errors:
+      - ORDER_STATE_CONFLICT
+      - RESOURCE_DISABLED
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiTransfer'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      security:
+      - bearerAuth: []
+  /transfers/{id}/receive:
+    post:
+      tags:
+      - 调拨
+      summary: 调入仓确认收货
+      operationId: postTransfersIdReceive
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: IN_TRANSIT；目标仓和 SKU 启用
+      x-inventory-effect: 目标仓每行 physical +q、available +q
+      x-stock-flow: TRANSFER_IN
+      x-business-errors:
+      - ORDER_STATE_CONFLICT
+      - RESOURCE_DISABLED
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiTransfer'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      security:
+      - bearerAuth: []
+  /transfers/{id}/cancel:
+    post:
+      tags:
+      - 调拨
+      summary: 取消调拨
+      operationId: postTransfersIdCancel
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: CREATED 或 RESERVED
+      x-inventory-effect: RESERVED 时源仓 available +q、locked -q；CREATED 无变化
+      x-stock-flow: RESERVED 时 TRANSFER_RELEASE
+      x-business-errors:
+      - ORDER_STATE_CONFLICT
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiTransfer'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      security:
+      - bearerAuth: []
+  /stocktakes/{id}/confirm:
+    post:
+      tags:
+      - 盘点
+      summary: 确认盘点调整
+      operationId: postStocktakesIdConfirm
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      x-state-precondition: DRAFT；三项库存仍等于创建时快照；countedPhysical >= locked
+      x-inventory-effect: 每行 physical 和 available 同加 delta；locked 不变
+      x-stock-flow: 非零 delta 行 STOCKTAKE_ADJUST
+      x-business-errors:
+      - ORDER_STATE_CONFLICT
+      - STOCK_SNAPSHOT_CHANGED
+      - COUNT_BELOW_LOCKED
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiStocktake'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      security:
+      - bearerAuth: []
+  /stocktakes/{id}/cancel:
+    post:
+      tags:
+      - 盘点
+      summary: 取消盘点
+      operationId: postStocktakesIdCancel
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: DRAFT
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors:
+      - ORDER_STATE_CONFLICT
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiStocktake'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      security:
+      - bearerAuth: []
+  /stock-flows:
+    get:
+      tags:
+      - 库存流水
+      summary: 分页查询库存流水
+      operationId: getStockFlows
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiPageStockFlow'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: warehouseId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      - name: skuId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      - name: bizType
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - INBOUND
+          - OUTBOUND
+          - TRANSFER
+          - STOCKTAKE
+      - name: bizId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      - name: flowType
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - INBOUND
+          - OUTBOUND_LOCK
+          - OUTBOUND_RELEASE
+          - OUTBOUND
+          - TRANSFER_LOCK
+          - TRANSFER_RELEASE
+          - TRANSFER_OUT
+          - TRANSFER_IN
+          - STOCKTAKE_ADJUST
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      security:
+      - bearerAuth: []
+  /stock-flows/{id}:
+    get:
+      tags:
+      - 库存流水
+      summary: 库存流水详情
+      operationId: getStockFlowsId
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiStockFlow'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      security:
+      - bearerAuth: []
+  /stock-alerts:
+    get:
+      tags:
+      - 库存预警
+      summary: 分页查询当前预警
+      operationId: getStockAlerts
+      x-roles:
+      - ADMIN
+      - WAREHOUSE_MANAGER
+      - WAREHOUSE_OPERATOR
+      x-state-precondition: 无
+      x-inventory-effect: 无
+      x-stock-flow: 无
+      x-business-errors: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiPageStockAlert'
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录或凭证失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 资源不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: 业务状态或资源冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: warehouseId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      - name: skuId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - ACTIVE
+          - RESOLVED
+          default: ACTIVE
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      security:
+      - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          description: 通用错误码见 info.description；业务特有错误码见各操作的 x-business-errors，库存写入还可能返回 STOCK_BUSY。
+        message:
+          type: string
+        data:
+          type: object
+          nullable: true
+          description: 错误响应固定为 null。
+        traceId:
+          type: string
+      required:
+      - code
+      - message
+      - data
+      - traceId
+    PageMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+          format: int64
+          minimum: 1
+        size:
+          type: integer
+          format: int64
+          minimum: 1
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+      required:
+      - page
+      - size
+      - total
+    UserVO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 1
+        username:
+          type: string
+        role:
+          type: string
+          enum:
+          - ADMIN
+          - WAREHOUSE_MANAGER
+          - WAREHOUSE_OPERATOR
+        enabled:
+          type: boolean
+      required:
+      - id
+      - username
+      - role
+      - enabled
+    LoginDTO:
+      type: object
+      properties:
+        username:
+          type: string
+          maxLength: 64
+        password:
+          type: string
+      required:
+      - username
+      - password
+    LoginVO:
+      type: object
+      properties:
+        token:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+        user:
+          $ref: '#/components/schemas/UserVO'
+      required:
+      - token
+      - expiresAt
+      - user
+    WarehouseCreateDTO:
+      type: object
+      properties:
+        code:
+          type: string
+          maxLength: 32
+        name:
+          type: string
+          maxLength: 100
+        address:
+          type: string
+          maxLength: 255
+      required:
+      - code
+      - name
+    WarehouseUpdateDTO:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        address:
+          type: string
+          maxLength: 255
+      required:
+      - name
+    WarehouseVO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 1
+        code:
+          type: string
+        name:
+          type: string
+        address:
+          type: string
+        enabled:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - code
+      - name
+      - enabled
+      - createdAt
+      - updatedAt
+    CategoryCreateDTO:
+      type: object
+      properties:
+        code:
+          type: string
+          maxLength: 32
+        name:
+          type: string
+          maxLength: 100
+      required:
+      - code
+      - name
+    CategoryUpdateDTO:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+      required:
+      - name
+    CategoryVO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 1
+        code:
+          type: string
+        name:
+          type: string
+        enabled:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - code
+      - name
+      - enabled
+      - createdAt
+      - updatedAt
+    SkuCreateDTO:
+      type: object
+      properties:
+        code:
+          type: string
+          maxLength: 64
+        name:
+          type: string
+          maxLength: 100
+        categoryId:
+          type: integer
+          format: int64
+          minimum: 1
+        unit:
+          type: string
+          maxLength: 16
+        safetyStock:
+          type: integer
+          format: int64
+          minimum: 0
+      required:
+      - code
+      - name
+      - categoryId
+      - unit
+      - safetyStock
+    SkuUpdateDTO:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        categoryId:
+          type: integer
+          format: int64
+          minimum: 1
+        unit:
+          type: string
+          maxLength: 16
+        safetyStock:
+          type: integer
+          format: int64
+          minimum: 0
+      required:
+      - name
+      - categoryId
+      - unit
+      - safetyStock
+    SkuVO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 1
+        code:
+          type: string
+        name:
+          type: string
+        categoryId:
+          type: integer
+          format: int64
+          minimum: 1
+        unit:
+          type: string
+        safetyStock:
+          type: integer
+          format: int64
+          minimum: 0
+        enabled:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - code
+      - name
+      - categoryId
+      - unit
+      - safetyStock
+      - enabled
+      - createdAt
+      - updatedAt
+    StockVO:
+      type: object
+      properties:
+        warehouseId:
+          type: integer
+          format: int64
+          minimum: 1
+        skuId:
+          type: integer
+          format: int64
+          minimum: 1
+        exists:
+          type: boolean
+        physicalStock:
+          type: integer
+          format: int64
+          minimum: 0
+        availableStock:
+          type: integer
+          format: int64
+          minimum: 0
+        lockedStock:
+          type: integer
+          format: int64
+          minimum: 0
+        safetyStock:
+          type: integer
+          format: int64
+          minimum: 0
+      required:
+      - warehouseId
+      - skuId
+      - exists
+      - physicalStock
+      - availableStock
+      - lockedStock
+      - safetyStock
+      description: 无库存行时返回零库存和 exists=false；列表仅展示已存在库存行。
+    OrderItemDTO:
+      type: object
+      properties:
+        skuId:
+          type: integer
+          format: int64
+          minimum: 1
+        quantity:
+          type: integer
+          format: int64
+          minimum: 1
+      required:
+      - skuId
+      - quantity
+    OrderItemVO:
+      type: object
+      properties:
+        skuId:
+          type: integer
+          format: int64
+          minimum: 1
+        quantity:
+          type: integer
+          format: int64
+          minimum: 1
+      required:
+      - skuId
+      - quantity
+    InboundCreateDTO:
+      type: object
+      properties:
+        warehouseId:
+          type: integer
+          format: int64
+          minimum: 1
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItemDTO'
+          minItems: 1
+        remark:
+          type: string
+          maxLength: 500
+      required:
+      - warehouseId
+      - items
+    OutboundCreateDTO:
+      type: object
+      properties:
+        warehouseId:
+          type: integer
+          format: int64
+          minimum: 1
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItemDTO'
+          minItems: 1
+        remark:
+          type: string
+          maxLength: 500
+      required:
+      - warehouseId
+      - items
+    TransferCreateDTO:
+      type: object
+      properties:
+        sourceWarehouseId:
+          type: integer
+          format: int64
+          minimum: 1
+        targetWarehouseId:
+          type: integer
+          format: int64
+          minimum: 1
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItemDTO'
+          minItems: 1
+        remark:
+          type: string
+          maxLength: 500
+      required:
+      - sourceWarehouseId
+      - targetWarehouseId
+      - items
+    StocktakeItemDTO:
+      type: object
+      properties:
+        skuId:
+          type: integer
+          format: int64
+          minimum: 1
+        countedPhysical:
+          type: integer
+          format: int64
+          minimum: 0
+      required:
+      - skuId
+      - countedPhysical
+    StocktakeCreateDTO:
+      type: object
+      properties:
+        warehouseId:
+          type: integer
+          format: int64
+          minimum: 1
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/StocktakeItemDTO'
+          minItems: 1
+        remark:
+          type: string
+          maxLength: 500
+      required:
+      - warehouseId
+      - items
+    StocktakeItemVO:
+      type: object
+      properties:
+        skuId:
+          type: integer
+          format: int64
+          minimum: 1
+        snapshotPhysical:
+          type: integer
+          format: int64
+          minimum: 0
+        snapshotAvailable:
+          type: integer
+          format: int64
+          minimum: 0
+        snapshotLocked:
+          type: integer
+          format: int64
+          minimum: 0
+        countedPhysical:
+          type: integer
+          format: int64
+          minimum: 0
+      required:
+      - skuId
+      - snapshotPhysical
+      - snapshotAvailable
+      - snapshotLocked
+      - countedPhysical
+    InboundVO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 1
+        orderNo:
+          type: string
+        status:
+          type: string
+          enum:
+          - PENDING
+          - COMPLETED
+          - CANCELLED
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItemVO'
+          minItems: 1
+        remark:
+          type: string
+        createdBy:
+          type: integer
+          format: int64
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        warehouseId:
+          type: integer
+          format: int64
+          minimum: 1
+        confirmedBy:
+          allOf:
+          - type: integer
+            format: int64
+            minimum: 1
+          nullable: true
+        confirmedAt:
+          allOf:
+          - type: string
+            format: date-time
+          nullable: true
+        cancelledBy:
+          allOf:
+          - type: integer
+            format: int64
+            minimum: 1
+          nullable: true
+        cancelledAt:
+          allOf:
+          - type: string
+            format: date-time
+          nullable: true
+      required:
+      - id
+      - orderNo
+      - status
+      - items
+      - createdBy
+      - createdAt
+      - updatedAt
+      - warehouseId
+    OutboundVO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 1
+        orderNo:
+          type: string
+        status:
+          type: string
+          enum:
+          - CREATED
+          - RESERVED
+          - COMPLETED
+          - CANCELLED
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItemVO'
+          minItems: 1
+        remark:
+          type: string
+        createdBy:
+          type: integer
+          format: int64
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        warehouseId:
+          type: integer
+          format: int64
+          minimum: 1
+        reservedBy:
+          allOf:
+          - type: integer
+            format: int64
+            minimum: 1
+          nullable: true
+        reservedAt:
+          allOf:
+          - type: string
+            format: date-time
+          nullable: true
+        releasedBy:
+          allOf:
+          - type: integer
+            format: int64
+            minimum: 1
+          nullable: true
+        releasedAt:
+          allOf:
+          - type: string
+            format: date-time
+          nullable: true
+        confirmedBy:
+          allOf:
+          - type: integer
+            format: int64
+            minimum: 1
+          nullable: true
+        confirmedAt:
+          allOf:
+          - type: string
+            format: date-time
+          nullable: true
+        cancelledBy:
+          allOf:
+          - type: integer
+            format: int64
+            minimum: 1
+          nullable: true
+        cancelledAt:
+          allOf:
+          - type: string
+            format: date-time
+          nullable: true
+      required:
+      - id
+      - orderNo
+      - status
+      - items
+      - createdBy
+      - createdAt
+      - updatedAt
+      - warehouseId
+    TransferVO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 1
+        orderNo:
+          type: string
+        status:
+          type: string
+          enum:
+          - CREATED
+          - RESERVED
+          - IN_TRANSIT
+          - COMPLETED
+          - CANCELLED
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItemVO'
+          minItems: 1
+        remark:
+          type: string
+        createdBy:
+          type: integer
+          format: int64
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        sourceWarehouseId:
+          type: integer
+          format: int64
+          minimum: 1
+        targetWarehouseId:
+          type: integer
+          format: int64
+          minimum: 1
+        reservedBy:
+          allOf:
+          - type: integer
+            format: int64
+            minimum: 1
+          nullable: true
+        reservedAt:
+          allOf:
+          - type: string
+            format: date-time
+          nullable: true
+        releasedBy:
+          allOf:
+          - type: integer
+            format: int64
+            minimum: 1
+          nullable: true
+        releasedAt:
+          allOf:
+          - type: string
+            format: date-time
+          nullable: true
+        dispatchedBy:
+          allOf:
+          - type: integer
+            format: int64
+            minimum: 1
+          nullable: true
+        dispatchedAt:
+          allOf:
+          - type: string
+            format: date-time
+          nullable: true
+        receivedBy:
+          allOf:
+          - type: integer
+            format: int64
+            minimum: 1
+          nullable: true
+        receivedAt:
+          allOf:
+          - type: string
+            format: date-time
+          nullable: true
+        cancelledBy:
+          allOf:
+          - type: integer
+            format: int64
+            minimum: 1
+          nullable: true
+        cancelledAt:
+          allOf:
+          - type: string
+            format: date-time
+          nullable: true
+      required:
+      - id
+      - orderNo
+      - status
+      - items
+      - createdBy
+      - createdAt
+      - updatedAt
+      - sourceWarehouseId
+      - targetWarehouseId
+    StocktakeVO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 1
+        orderNo:
+          type: string
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - COMPLETED
+          - CANCELLED
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/StocktakeItemVO'
+          minItems: 1
+        remark:
+          type: string
+        createdBy:
+          type: integer
+          format: int64
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        warehouseId:
+          type: integer
+          format: int64
+          minimum: 1
+        confirmedBy:
+          allOf:
+          - type: integer
+            format: int64
+            minimum: 1
+          nullable: true
+        confirmedAt:
+          allOf:
+          - type: string
+            format: date-time
+          nullable: true
+        cancelledBy:
+          allOf:
+          - type: integer
+            format: int64
+            minimum: 1
+          nullable: true
+        cancelledAt:
+          allOf:
+          - type: string
+            format: date-time
+          nullable: true
+      required:
+      - id
+      - orderNo
+      - status
+      - items
+      - createdBy
+      - createdAt
+      - updatedAt
+      - warehouseId
+    StockFlowVO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 1
+        warehouseId:
+          type: integer
+          format: int64
+          minimum: 1
+        skuId:
+          type: integer
+          format: int64
+          minimum: 1
+        bizType:
+          type: string
+          enum:
+          - INBOUND
+          - OUTBOUND
+          - TRANSFER
+          - STOCKTAKE
+        bizId:
+          type: integer
+          format: int64
+          minimum: 1
+        flowType:
+          type: string
+          enum:
+          - INBOUND
+          - OUTBOUND_LOCK
+          - OUTBOUND_RELEASE
+          - OUTBOUND
+          - TRANSFER_LOCK
+          - TRANSFER_RELEASE
+          - TRANSFER_OUT
+          - TRANSFER_IN
+          - STOCKTAKE_ADJUST
+        deltaPhysical:
+          type: integer
+          format: int64
+        deltaAvailable:
+          type: integer
+          format: int64
+        deltaLocked:
+          type: integer
+          format: int64
+        beforePhysical:
+          type: integer
+          format: int64
+          minimum: 0
+        beforeAvailable:
+          type: integer
+          format: int64
+          minimum: 0
+        beforeLocked:
+          type: integer
+          format: int64
+          minimum: 0
+        afterPhysical:
+          type: integer
+          format: int64
+          minimum: 0
+        afterAvailable:
+          type: integer
+          format: int64
+          minimum: 0
+        afterLocked:
+          type: integer
+          format: int64
+          minimum: 0
+        operatorId:
+          type: integer
+          format: int64
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - warehouseId
+      - skuId
+      - bizType
+      - bizId
+      - flowType
+      - deltaPhysical
+      - deltaAvailable
+      - deltaLocked
+      - beforePhysical
+      - beforeAvailable
+      - beforeLocked
+      - afterPhysical
+      - afterAvailable
+      - afterLocked
+      - operatorId
+      - createdAt
+    StockAlertVO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 1
+        warehouseId:
+          type: integer
+          format: int64
+          minimum: 1
+        skuId:
+          type: integer
+          format: int64
+          minimum: 1
+        availableStock:
+          type: integer
+          format: int64
+          minimum: 0
+        safetyStock:
+          type: integer
+          format: int64
+          minimum: 0
+        status:
+          type: string
+          enum:
+          - ACTIVE
+          - RESOLVED
+        triggeredAt:
+          type: string
+          format: date-time
+        resolvedAt:
+          allOf:
+          - type: string
+            format: date-time
+          nullable: true
+      required:
+      - id
+      - warehouseId
+      - skuId
+      - availableStock
+      - safetyStock
+      - status
+      - triggeredAt
+    ApiUser:
+      type: object
+      properties:
+        code:
+          type: string
+          enum:
+          - OK
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/UserVO'
+        traceId:
+          type: string
+      required:
+      - code
+      - message
+      - data
+      - traceId
+    ApiLogin:
+      type: object
+      properties:
+        code:
+          type: string
+          enum:
+          - OK
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/LoginVO'
+        traceId:
+          type: string
+      required:
+      - code
+      - message
+      - data
+      - traceId
+    ApiWarehouse:
+      type: object
+      properties:
+        code:
+          type: string
+          enum:
+          - OK
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/WarehouseVO'
+        traceId:
+          type: string
+      required:
+      - code
+      - message
+      - data
+      - traceId
+    ApiCategory:
+      type: object
+      properties:
+        code:
+          type: string
+          enum:
+          - OK
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/CategoryVO'
+        traceId:
+          type: string
+      required:
+      - code
+      - message
+      - data
+      - traceId
+    ApiSku:
+      type: object
+      properties:
+        code:
+          type: string
+          enum:
+          - OK
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/SkuVO'
+        traceId:
+          type: string
+      required:
+      - code
+      - message
+      - data
+      - traceId
+    ApiStock:
+      type: object
+      properties:
+        code:
+          type: string
+          enum:
+          - OK
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/StockVO'
+        traceId:
+          type: string
+      required:
+      - code
+      - message
+      - data
+      - traceId
+    ApiInbound:
+      type: object
+      properties:
+        code:
+          type: string
+          enum:
+          - OK
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/InboundVO'
+        traceId:
+          type: string
+      required:
+      - code
+      - message
+      - data
+      - traceId
+    ApiOutbound:
+      type: object
+      properties:
+        code:
+          type: string
+          enum:
+          - OK
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/OutboundVO'
+        traceId:
+          type: string
+      required:
+      - code
+      - message
+      - data
+      - traceId
+    ApiTransfer:
+      type: object
+      properties:
+        code:
+          type: string
+          enum:
+          - OK
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/TransferVO'
+        traceId:
+          type: string
+      required:
+      - code
+      - message
+      - data
+      - traceId
+    ApiStockFlow:
+      type: object
+      properties:
+        code:
+          type: string
+          enum:
+          - OK
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/StockFlowVO'
+        traceId:
+          type: string
+      required:
+      - code
+      - message
+      - data
+      - traceId
+    ApiStocktake:
+      type: object
+      properties:
+        code:
+          type: string
+          enum:
+          - OK
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/StocktakeVO'
+        traceId:
+          type: string
+      required:
+      - code
+      - message
+      - data
+      - traceId
+    ApiStockAlert:
+      type: object
+      properties:
+        code:
+          type: string
+          enum:
+          - OK
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/StockAlertVO'
+        traceId:
+          type: string
+      required:
+      - code
+      - message
+      - data
+      - traceId
+    PageWarehouseVO:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/WarehouseVO'
+        page:
+          type: integer
+          format: int64
+          minimum: 1
+        size:
+          type: integer
+          format: int64
+          minimum: 1
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+      required:
+      - items
+      - page
+      - size
+      - total
+    ApiPageWarehouse:
+      type: object
+      properties:
+        code:
+          type: string
+          enum:
+          - OK
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/PageWarehouseVO'
+        traceId:
+          type: string
+      required:
+      - code
+      - message
+      - data
+      - traceId
+    PageCategoryVO:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryVO'
+        page:
+          type: integer
+          format: int64
+          minimum: 1
+        size:
+          type: integer
+          format: int64
+          minimum: 1
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+      required:
+      - items
+      - page
+      - size
+      - total
+    ApiPageCategory:
+      type: object
+      properties:
+        code:
+          type: string
+          enum:
+          - OK
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/PageCategoryVO'
+        traceId:
+          type: string
+      required:
+      - code
+      - message
+      - data
+      - traceId
+    PageSkuVO:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SkuVO'
+        page:
+          type: integer
+          format: int64
+          minimum: 1
+        size:
+          type: integer
+          format: int64
+          minimum: 1
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+      required:
+      - items
+      - page
+      - size
+      - total
+    ApiPageSku:
+      type: object
+      properties:
+        code:
+          type: string
+          enum:
+          - OK
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/PageSkuVO'
+        traceId:
+          type: string
+      required:
+      - code
+      - message
+      - data
+      - traceId
+    PageStockVO:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/StockVO'
+        page:
+          type: integer
+          format: int64
+          minimum: 1
+        size:
+          type: integer
+          format: int64
+          minimum: 1
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+      required:
+      - items
+      - page
+      - size
+      - total
+    ApiPageStock:
+      type: object
+      properties:
+        code:
+          type: string
+          enum:
+          - OK
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/PageStockVO'
+        traceId:
+          type: string
+      required:
+      - code
+      - message
+      - data
+      - traceId
+    PageInboundVO:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/InboundVO'
+        page:
+          type: integer
+          format: int64
+          minimum: 1
+        size:
+          type: integer
+          format: int64
+          minimum: 1
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+      required:
+      - items
+      - page
+      - size
+      - total
+    ApiPageInbound:
+      type: object
+      properties:
+        code:
+          type: string
+          enum:
+          - OK
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/PageInboundVO'
+        traceId:
+          type: string
+      required:
+      - code
+      - message
+      - data
+      - traceId
+    PageOutboundVO:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OutboundVO'
+        page:
+          type: integer
+          format: int64
+          minimum: 1
+        size:
+          type: integer
+          format: int64
+          minimum: 1
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+      required:
+      - items
+      - page
+      - size
+      - total
+    ApiPageOutbound:
+      type: object
+      properties:
+        code:
+          type: string
+          enum:
+          - OK
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/PageOutboundVO'
+        traceId:
+          type: string
+      required:
+      - code
+      - message
+      - data
+      - traceId
+    PageTransferVO:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransferVO'
+        page:
+          type: integer
+          format: int64
+          minimum: 1
+        size:
+          type: integer
+          format: int64
+          minimum: 1
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+      required:
+      - items
+      - page
+      - size
+      - total
+    ApiPageTransfer:
+      type: object
+      properties:
+        code:
+          type: string
+          enum:
+          - OK
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/PageTransferVO'
+        traceId:
+          type: string
+      required:
+      - code
+      - message
+      - data
+      - traceId
+    PageStockFlowVO:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/StockFlowVO'
+        page:
+          type: integer
+          format: int64
+          minimum: 1
+        size:
+          type: integer
+          format: int64
+          minimum: 1
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+      required:
+      - items
+      - page
+      - size
+      - total
+    ApiPageStockFlow:
+      type: object
+      properties:
+        code:
+          type: string
+          enum:
+          - OK
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/PageStockFlowVO'
+        traceId:
+          type: string
+      required:
+      - code
+      - message
+      - data
+      - traceId
+    PageStocktakeVO:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/StocktakeVO'
+        page:
+          type: integer
+          format: int64
+          minimum: 1
+        size:
+          type: integer
+          format: int64
+          minimum: 1
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+      required:
+      - items
+      - page
+      - size
+      - total
+    ApiPageStocktake:
+      type: object
+      properties:
+        code:
+          type: string
+          enum:
+          - OK
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/PageStocktakeVO'
+        traceId:
+          type: string
+      required:
+      - code
+      - message
+      - data
+      - traceId
+    PageStockAlertVO:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/StockAlertVO'
+        page:
+          type: integer
+          format: int64
+          minimum: 1
+        size:
+          type: integer
+          format: int64
+          minimum: 1
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+      required:
+      - items
+      - page
+      - size
+      - total
+    ApiPageStockAlert:
+      type: object
+      properties:
+        code:
+          type: string
+          enum:
+          - OK
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/PageStockAlertVO'
+        traceId:
+          type: string
+      required:
+      - code
+      - message
+      - data
+      - traceId
