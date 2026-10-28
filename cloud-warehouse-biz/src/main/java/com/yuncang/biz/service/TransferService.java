@@ -20,6 +20,10 @@ import java.util.function.BiFunction;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 管理跨仓调拨的预占、发货和收货。
+ * 发货扣减源仓库存，收货增加目标仓库存；在途期间不计入目标仓库存。
+ */
 @Service
 public class TransferService {
     private final TransferMapper mapper;
@@ -60,6 +64,9 @@ public class TransferService {
         return new PageResult<>(orders, page, size, total);
     }
 
+    /**
+     * 创建调拨单，不改变库存；源仓与目标仓必须不同且启用，SKU 不可重复。
+     */
     @Transactional
     public TransferOrder create(Long sourceWarehouseId, Long targetWarehouseId,
             List<OrderItemCommand> items, String remark, Long createdBy) {
@@ -95,6 +102,9 @@ public class TransferService {
         return order;
     }
 
+    /**
+     * 按 SKU ID 固定库存操作顺序，降低多明细并发操作时的死锁风险。
+     */
     private List<TransferOrderItem> sortedItems(Long id) {
         return mapper.findItemsByOrderId(id).stream()
                 .sorted(Comparator.comparing(TransferOrderItem::getSkuId)).toList();
@@ -135,6 +145,9 @@ public class TransferService {
         }
     }
 
+    /**
+     * 仅 CREATED 调拨单可预占源仓库存，任一明细不足时整单回滚。
+     */
     @Transactional
     public TransferOrder reserve(Long id, Long userId) {
         TransferOrder order = lock(id, "CREATED");
@@ -146,6 +159,9 @@ public class TransferService {
         return get(id);
     }
 
+    /**
+     * 仅 RESERVED 调拨单可释放源仓预占，成功后回到 CREATED。
+     */
     @Transactional
     public TransferOrder release(Long id, Long userId) {
         TransferOrder order = lock(id, "RESERVED");
@@ -159,6 +175,10 @@ public class TransferService {
                 (sku, quantity) -> stocks.release(order.getSourceWarehouseId(), sku, quantity));
     }
 
+    /**
+     * 将 RESERVED 调拨单发货为 IN_TRANSIT，扣减源仓实物和锁定库存。
+     * 本次事务不增加目标仓库存，目标仓在收货时入账。
+     */
     @Transactional
     public TransferOrder dispatch(Long id, Long userId) {
         TransferOrder order = lock(id, "RESERVED");
@@ -170,6 +190,10 @@ public class TransferService {
         return get(id);
     }
 
+    /**
+     * 对 IN_TRANSIT 调拨单整单收货，增加目标仓实物和可用库存并完成单据。
+     * 先锁定单据并校验状态，防止重复收货造成库存重复增加。
+     */
     @Transactional
     public TransferOrder receive(Long id, Long userId) {
         TransferOrder order = lock(id, "IN_TRANSIT");
@@ -190,6 +214,10 @@ public class TransferService {
         return get(id);
     }
 
+    /**
+     * 仅允许取消 CREATED 或 RESERVED 调拨单；已预占时先释放源仓库存。
+     * 发货后的在途单据不可通过取消回退。
+     */
     @Transactional
     public TransferOrder cancel(Long id, Long userId) {
         TransferOrder order = mapper.findForUpdate(id);

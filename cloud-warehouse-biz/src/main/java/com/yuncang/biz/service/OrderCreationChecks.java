@@ -13,6 +13,10 @@ import com.yuncang.common.BusinessException;
 import com.yuncang.common.ErrorCode;
 import org.springframework.stereotype.Component;
 
+/**
+ * 校验单据依赖的仓库和 SKU，并锁定对应档案行。
+ * 调用方须提供覆盖整个业务操作的事务，防止校验后资源被并发停用。
+ */
 @Component
 public class OrderCreationChecks {
     private final WarehouseMapper warehouses;

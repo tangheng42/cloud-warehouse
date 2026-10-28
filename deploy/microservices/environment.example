@@ -1,0 +1,19 @@
+# Copy to a local, non-versioned environment file outside the repository.
+# For containers, localhost means that container, not your Windows host.
+# Use an isolated infrastructure environment and separate DB accounts.
+NACOS_SERVER_ADDR=
+WAREHOUSE_DB_URL=
+WAREHOUSE_DB_USERNAME=
+WAREHOUSE_DB_PASSWORD=
+NOTIFICATION_DB_URL=
+NOTIFICATION_DB_USERNAME=
+NOTIFICATION_DB_PASSWORD=
+RABBITMQ_HOST=
+RABBITMQ_PORT=5672
+RABBITMQ_USERNAME=
+RABBITMQ_PASSWORD=
+REDIS_HOST=
+REDIS_PORT=6379
+REDIS_PASSWORD=
+JWT_SECRET=
+APP_INTERNAL_TOKEN=

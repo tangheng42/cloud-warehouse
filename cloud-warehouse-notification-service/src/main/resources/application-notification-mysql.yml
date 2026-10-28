@@ -1,0 +1,41 @@
+# 显式启用 notification-mysql，连接通知服务自己的 schema。
+# URL 示例见 docs/notification-service-database.md；不回退到仓储库或 root 账号。
+spring:
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    listener:
+      simple:
+        acknowledge-mode: auto
+        default-requeue-rejected: false
+        prefetch: 10
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 1s
+          multiplier: 2
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${NOTIFICATION_DB_URL}
+    username: ${NOTIFICATION_DB_USERNAME}
+    password: ${NOTIFICATION_DB_PASSWORD}
+  sql:
+    init:
+      mode: never
+
+mybatis:
+  mapper-locations: classpath*:mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+
+app:
+  notifications:
+    consumer-enabled: ${NOTIFICATION_CONSUMER_ENABLED:false}
+    exchange: ${NOTIFICATIONS_EXCHANGE:yuncang.stock-alert}
+    queue: ${NOTIFICATIONS_QUEUE:yuncang.stock-alert.notification}
+management:
+  health:
+    rabbit:
+      enabled: ${NOTIFICATION_CONSUMER_ENABLED:false}

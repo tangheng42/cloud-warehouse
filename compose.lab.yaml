@@ -1,0 +1,157 @@
+# Standalone integration lab. Never includes the existing compose files or host databases.
+name: yuncang-lab
+services:
+  warehouse-db:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${LAB_WAREHOUSE_ROOT_PASSWORD:?Run Start-Lab.ps1}
+      MYSQL_DATABASE: yuncang_lab
+      MYSQL_USER: warehouse_app
+      MYSQL_PASSWORD: ${LAB_WAREHOUSE_PASSWORD:?Run Start-Lab.ps1}
+      TZ: UTC
+    command: ["--innodb-buffer-pool-size=128M"]
+    volumes:
+      - warehouse_db:/var/lib/mysql
+      - ./docs/sql/01-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./docs/sql/03-v1-business-schema.sql:/docker-entrypoint-initdb.d/02-business.sql:ro
+      - ./docs/sql/04-v1_1-idempotency.sql:/docker-entrypoint-initdb.d/03-idempotency.sql:ro
+      - ./docs/sql/07-warehouse-outbox-only.sql:/docker-entrypoint-initdb.d/04-outbox.sql:ro
+      - ./docs/sql/02-demo-data.sql:/docker-entrypoint-initdb.d/05-demo-data.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_PASSWORD mysql -u $$MYSQL_USER -D $$MYSQL_DATABASE -e 'SELECT 1 FROM app_user LIMIT 1' >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 36
+      start_period: 30s
+  notification-db:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${LAB_NOTIFICATION_ROOT_PASSWORD:?Run Start-Lab.ps1}
+      MYSQL_DATABASE: yuncang_notification_dev
+      MYSQL_USER: notification_app
+      MYSQL_PASSWORD: ${LAB_NOTIFICATION_PASSWORD:?Run Start-Lab.ps1}
+      TZ: UTC
+    command: ["--innodb-buffer-pool-size=128M"]
+    volumes:
+      - notification_db:/var/lib/mysql
+      - ./docs/sql/06-notification-service-dev-schema.sql:/docker-entrypoint-initdb.d/01-notification.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_PASSWORD mysql -u $$MYSQL_USER -D $$MYSQL_DATABASE -e 'SELECT 1 FROM notification LIMIT 1' >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 36
+      start_period: 30s
+  redis:
+    image: redis:7.2-alpine
+    environment:
+      REDIS_PASSWORD: ${LAB_REDIS_PASSWORD:?Run Start-Lab.ps1}
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\" --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru"]
+    volumes: ["redis_data:/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$$REDIS_PASSWORD redis-cli ping | grep -q PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  rabbitmq:
+    image: rabbitmq:4-management
+    environment:
+      RABBITMQ_DEFAULT_USER: lab_app
+      RABBITMQ_DEFAULT_PASS: ${LAB_RABBIT_PASSWORD:?Run Start-Lab.ps1}
+    volumes: ["rabbit_data:/var/lib/rabbitmq"]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 24
+  nacos:
+    image: nacos/nacos-server:v2.5.1
+    environment:
+      MODE: standalone
+      NACOS_AUTH_ENABLE: "false"
+      NACOS_AUTH_TOKEN: ${LAB_NACOS_TOKEN:?Run Start-Lab.ps1}
+      NACOS_AUTH_IDENTITY_KEY: labIdentity
+      NACOS_AUTH_IDENTITY_VALUE: ${LAB_NACOS_IDENTITY:?Run Start-Lab.ps1}
+      JVM_XMS: 256m
+      JVM_XMX: 512m
+      JVM_XMN: 128m
+    volumes:
+      - nacos_data:/home/nacos/data
+      - nacos_logs:/home/nacos/logs
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8848/nacos/v1/console/health/readiness >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 36
+      start_period: 30s
+  warehouse:
+    image: yuncang-microservices-warehouse:latest
+    environment:
+      SPRING_PROFILES_ACTIVE: mysql,microservices
+      NACOS_SERVER_ADDR: nacos:8848
+      DB_URL: jdbc:mysql://warehouse-db:3306/yuncang_lab?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&allowPublicKeyRetrieval=true&useSSL=false
+      DB_USERNAME: warehouse_app
+      DB_PASSWORD: ${LAB_WAREHOUSE_PASSWORD}
+      JWT_SECRET: ${LAB_JWT_SECRET:?Run Start-Lab.ps1}
+      APP_INTERNAL_TOKEN: ${LAB_INTERNAL_TOKEN:?Run Start-Lab.ps1}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USERNAME: lab_app
+      RABBITMQ_PASSWORD: ${LAB_RABBIT_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${LAB_REDIS_PASSWORD}
+      JAVA_TOOL_OPTIONS: -Duser.home=/home/app -Xms128m -Xmx384m
+    depends_on:
+      warehouse-db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      rabbitmq: {condition: service_healthy}
+      nacos: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8090/actuator/health >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 36
+      start_period: 30s
+  notification:
+    image: yuncang-microservices-notification:latest
+    environment:
+      SPRING_PROFILES_ACTIVE: notification-mysql
+      NACOS_SERVER_ADDR: nacos:8848
+      NOTIFICATION_DB_URL: jdbc:mysql://notification-db:3306/yuncang_notification_dev?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&allowPublicKeyRetrieval=true&useSSL=false
+      NOTIFICATION_DB_USERNAME: notification_app
+      NOTIFICATION_DB_PASSWORD: ${LAB_NOTIFICATION_PASSWORD}
+      APP_INTERNAL_TOKEN: ${LAB_INTERNAL_TOKEN}
+      NOTIFICATION_CONSUMER_ENABLED: "true"
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USERNAME: lab_app
+      RABBITMQ_PASSWORD: ${LAB_RABBIT_PASSWORD}
+      JAVA_TOOL_OPTIONS: -Duser.home=/home/app -Xms128m -Xmx384m
+    depends_on:
+      notification-db: {condition: service_healthy}
+      rabbitmq: {condition: service_healthy}
+      nacos: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8091/actuator/health >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 36
+      start_period: 30s
+  gateway:
+    image: yuncang-microservices-gateway:latest
+    environment:
+      NACOS_SERVER_ADDR: nacos:8848
+      JAVA_TOOL_OPTIONS: -Duser.home=/home/app -Xms128m -Xmx384m
+    ports: ["127.0.0.1:${LAB_GATEWAY_PORT:-18080}:8080"]
+    depends_on:
+      warehouse: {condition: service_healthy}
+      notification: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+volumes:
+  warehouse_db:
+  notification_db:
+  redis_data:
+  rabbit_data:
+  nacos_data:
+  nacos_logs:

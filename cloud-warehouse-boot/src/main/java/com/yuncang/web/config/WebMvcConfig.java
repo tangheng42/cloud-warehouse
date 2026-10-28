@@ -14,7 +14,11 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(authInterceptor)
-                .addPathPatterns("/api/v1/**", "/api/v1.1/**")
+                .addPathPatterns(
+                        "/api/v1/**",
+                        "/api/v1.1/**",
+                        "/api/learning/**"
+                )
                 .excludePathPatterns("/api/v1/auth/login");
         // /doc.html、/v3/api-docs、/swagger-ui/** 及静态资源不在 /api/v1/** 内。
     }

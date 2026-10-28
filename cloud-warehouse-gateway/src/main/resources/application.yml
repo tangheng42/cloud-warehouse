@@ -1,0 +1,30 @@
+server:
+  port: ${GATEWAY_PORT:8080}
+spring:
+  application:
+    name: yuncang-gateway
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: warehouse-public-api
+              uri: lb://cloud-warehouse
+              predicates:
+                - Path=/api/v1/**,/api/v1.1/**,/api/learning/**
+              filters:
+                - RemoveRequestHeader=X-Internal-Token
+          httpclient:
+            connect-timeout: 2000
+            response-timeout: 10s
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never

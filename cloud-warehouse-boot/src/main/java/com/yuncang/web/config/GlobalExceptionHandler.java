@@ -4,6 +4,8 @@ import com.yuncang.common.ApiResponse;
 import com.yuncang.common.BusinessException;
 import com.yuncang.common.ErrorCode;
 import com.yuncang.common.TraceContext;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,5 +56,35 @@ public class GlobalExceptionHandler {
     private ResponseEntity<ApiResponse<Void>> error(ErrorCode code) {
         return ResponseEntity.status(code.getHttpStatus())
                 .body(ApiResponse.error(code.getCode(), code.getDefaultMessage(), TraceContext.get()));
+    }
+
+    @ExceptionHandler(CallNotPermittedException.class)
+    public ResponseEntity<ApiResponse<Void>> circuitBreakerOpen(
+            CallNotPermittedException e) {
+
+        if (!"notificationQuery".equals(e.getCausingCircuitBreakerName())) {
+            log.error("未知熔断器拒绝调用: {}",
+                    e.getCausingCircuitBreakerName(), e);
+            return error(ErrorCode.INTERNAL_ERROR);
+        }
+
+        log.warn("通知服务熔断器已打开，拒绝远程调用");
+
+        return error(ErrorCode.NOTIFICATION_SERVICE_UNAVAILABLE);
+    }
+
+    @ExceptionHandler(RequestNotPermitted.class)
+    public ResponseEntity<ApiResponse<Void>> rateLimit(
+            RequestNotPermitted e) {
+
+        log.warn("请求触发限流：{}", e.getMessage());
+
+        return error(ErrorCode.NOTIFICATION_RATE_LIMITED);
+    }
+
+    @ExceptionHandler(io.github.resilience4j.bulkhead.BulkheadFullException.class)
+    public ResponseEntity<ApiResponse<Void>> bulkheadFull(
+            io.github.resilience4j.bulkhead.BulkheadFullException e) {
+        return error(ErrorCode.NOTIFICATION_SERVICE_UNAVAILABLE);
     }
 }

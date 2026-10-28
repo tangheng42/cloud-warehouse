@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@org.springframework.context.annotation.Profile("!microservices")
 @Validated
 @Tag(name = "异步通知 V1.1")
 @SecurityRequirement(name = "bearerAuth")

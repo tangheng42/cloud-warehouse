@@ -22,6 +22,10 @@ import com.yuncang.common.PageResult;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 管理入库单及实际入库。创建只保存待入库单，确认时才增加库存。
+ * 单据状态、库存变化、流水和预警在同一事务内提交。
+ */
 @Service
 public class InboundService {
 
@@ -71,6 +75,9 @@ public class InboundService {
         return new PageResult<>(orders, page, size, total);
     }
 
+    /**
+     * 取消尚未确认的入库单，不变更库存；不存在或状态不允许时抛出业务异常。
+     */
     @Transactional
     public InboundOrder cancel(Long id, Long cancelledBy) {
         if (inboundMapper.cancel(id, cancelledBy) == 0) {
@@ -81,6 +88,9 @@ public class InboundService {
     }
 
 
+    /**
+     * 创建 PENDING 入库单及明细，不增加库存。仓库和 SKU 必须存在且启用，明细不可重复。
+     */
     @Transactional
     public InboundOrder create(
             Long warehouseId,
@@ -91,8 +101,6 @@ public class InboundService {
         checks.warehouse(warehouseId);
         checks.items(items);
 
-
-        // 4. 创建入库单头
         InboundOrder order = new InboundOrder();
 
         order.setOrderNo(OrderNumbers.next("IN"));
@@ -103,8 +111,6 @@ public class InboundService {
 
         inboundMapper.insert(order);
 
-
-        // 5. 创建明细
         for (OrderItemCommand command : items) {
 
             InboundOrderItem item =
@@ -117,8 +123,6 @@ public class InboundService {
             inboundMapper.insertItem(item);
         }
 
-
-        // 6. 返回完整入库单
         return get(order.getId());
     }
 
@@ -140,20 +144,25 @@ public class InboundService {
         return order;
     }
 
+    /**
+     * 确认 PENDING 入库单并增加实物库存、可用库存，锁定库存不变。
+     * 先锁单据，再按 SKU 顺序处理库存；任一明细失败则整单回滚。
+     * 重复确认抛出状态冲突，不会重复入库。
+     */
     @Transactional
     public InboundOrder confirm(Long id, Long confirmedBy) {
 
-        // 1. 锁入库单 + 校验状态
+        // 在当前事务内锁定单据，阻止并发确认造成重复入库。
         InboundOrder order =
                 lockPendingOrder(id);
 
 
-        // 2. 校验仓库仍然启用
+        // 创建与确认可能间隔较久，实际入库前重新核对仓库状态。
         checks.warehouse(order.getWarehouseId());
 
 
 
-        // 3. 查询订单明细，并按照 skuId 固定顺序
+        // 按 SKU ID 固定库存操作顺序，降低多明细并发入库时的死锁风险。
         List<InboundOrderItem> items =
                 inboundMapper.findItemsByOrderId(id)
                         .stream()
@@ -164,40 +173,30 @@ public class InboundService {
                         )
                         .toList();
 
-
-        // 4. 先检查所有 SKU
         for (InboundOrderItem item : items) {
 
             checks.sku(item.getSkuId());
         }
 
-
-        // 5. 执行整单入库
         for (InboundOrderItem item : items) {
 
             Long quantity =
                     item.getQuantity();
 
 
-            // 加库存：
-            // 第一次 → INSERT
-            // 已存在 → UPDATE
+            // 首次入库创建库存行；已有库存行则原子累加，避免先查后插的并发竞态。
             stockMapper.inboundUpsert(
                     order.getWarehouseId(),
                     item.getSkuId(),
                     quantity
             );
 
-
-            // 查询修改后的库存
             WarehouseStock stock =
                     stockMapper.findForUpdate(
                             order.getWarehouseId(),
                             item.getSkuId()
                     );
 
-
-            // after
             long afterPhysical =
                     stock.getPhysicalStock();
 
@@ -208,7 +207,7 @@ public class InboundService {
                     stock.getLockedStock();
 
 
-            // 根据入库变化反推 before
+            // 当前读取的是入库后的库存，扣除本次增量以记录流水的变更前值。
             long beforePhysical =
                     afterPhysical - quantity;
 
@@ -218,8 +217,6 @@ public class InboundService {
             long beforeLocked =
                     afterLocked;
 
-
-            // 6. 写库存流水
             StockFlow flow =
                     new StockFlow();
 
@@ -277,8 +274,6 @@ public class InboundService {
             stockAlertService.refresh(order.getWarehouseId(), item.getSkuId());
         }
 
-
-        // 7. 修改订单状态
         int rows =
                 inboundMapper.complete(
                         id,
@@ -292,8 +287,6 @@ public class InboundService {
             );
         }
 
-
-        // 8. 返回最新订单
         return get(id);
     }
 

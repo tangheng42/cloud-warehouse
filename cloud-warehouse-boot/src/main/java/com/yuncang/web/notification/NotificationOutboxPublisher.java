@@ -13,6 +13,10 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 扫描已提交的库存预警发件箱，向消息队列发送通知并重试失败记录。
+ * 发送成功与数据库标记之间可能中断，消费者必须按事件 ID 去重。
+ */
 @Component
 @ConditionalOnProperty(name = "app.notifications.enabled", havingValue = "true")
 public class NotificationOutboxPublisher {
@@ -30,6 +34,10 @@ public class NotificationOutboxPublisher {
 
     private record Pending(long id, String eventId, String payload) {}
 
+    /**
+     * 每轮锁定最多 10 条到期记录，跳过其他实例已锁定的行。
+     * 收到确认且消息未被退回才标记 SENT；失败记录延后 5 秒重试。
+     */
     @Scheduled(fixedDelayString = "${app.notifications.publish-interval-ms:5000}")
     @Transactional
     public void publishPending() {

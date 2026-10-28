@@ -15,7 +15,9 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Optional protocol extension for create endpoints. The unique row and order share one transaction. */
+/**
+ * 为创建单据提供可选的幂等键协议。幂等记录与业务单据在同一事务内提交。
+ */
 @Service
 public class CreateRequestIdempotencyService {
     private final JdbcTemplate jdbc;
@@ -26,6 +28,12 @@ public class CreateRequestIdempotencyService {
         this.json = json;
     }
 
+    /**
+     * 按用户、操作类型和幂等键识别重复创建请求。
+     * 同键同请求通过 finder 返回已有单据的当前状态；同键不同请求抛出幂等键冲突。
+     * key 为 null 时直接创建，不提供请求去重；失败时幂等记录随业务事务回滚。
+     * creator 必须参与当前事务，且 finder 应按业务 ID 查询已创建结果。
+     */
     @Transactional
     public <T> T create(String key, long userId, String operation, Object request,
             Supplier<T> creator, ToLongFunction<T> id, Function<Long, T> finder) {
@@ -50,7 +58,7 @@ public class CreateRequestIdempotencyService {
                     id.applyAsLong(result), userId, operation, key);
             return result;
         }
-        // A locking read sees the committed winning request even under InnoDB REPEATABLE READ.
+        // 使用锁定读获取获胜请求已提交的记录，避免可重复读快照看不到并发写入。
         return jdbc.query("SELECT payload_sha256, biz_id FROM create_request_idempotency "
                         + "WHERE user_id=? AND operation=? AND idem_key=? FOR UPDATE",
                 rs -> {

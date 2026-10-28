@@ -1,0 +1,57 @@
+# Application services only. Infrastructure/schema provisioning is deliberately manual.
+# Use a dedicated environment file; never point test deployments at the original business database.
+name: yuncang-microservices
+services:
+  warehouse:
+    build:
+      context: .
+      dockerfile: deploy/microservices/Dockerfile
+      args:
+        JAR_FILE: cloud-warehouse-boot/target/cloud-warehouse-boot-1.0-SNAPSHOT.jar
+    environment:
+      SPRING_PROFILES_ACTIVE: mysql,microservices
+      NACOS_SERVER_ADDR: ${NACOS_SERVER_ADDR:?Set NACOS_SERVER_ADDR}
+      DB_URL: ${WAREHOUSE_DB_URL:?Set isolated WAREHOUSE_DB_URL}
+      DB_USERNAME: ${WAREHOUSE_DB_USERNAME:?Set WAREHOUSE_DB_USERNAME}
+      DB_PASSWORD: ${WAREHOUSE_DB_PASSWORD:?Set WAREHOUSE_DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+      APP_INTERNAL_TOKEN: ${APP_INTERNAL_TOKEN:?Set APP_INTERNAL_TOKEN}
+      RABBITMQ_HOST: ${RABBITMQ_HOST:?Set RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:?Set RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD}
+      REDIS_HOST: ${REDIS_HOST:?Set REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD}
+    expose: ["8090"]
+    restart: unless-stopped
+  notification:
+    build:
+      context: .
+      dockerfile: deploy/microservices/Dockerfile
+      args:
+        JAR_FILE: cloud-warehouse-notification-service/target/cloud-warehouse-notification-service-1.0-SNAPSHOT.jar
+    environment:
+      SPRING_PROFILES_ACTIVE: notification-mysql
+      NACOS_SERVER_ADDR: ${NACOS_SERVER_ADDR:?Set NACOS_SERVER_ADDR}
+      NOTIFICATION_DB_URL: ${NOTIFICATION_DB_URL:?Set independent NOTIFICATION_DB_URL}
+      NOTIFICATION_DB_USERNAME: ${NOTIFICATION_DB_USERNAME:?Set NOTIFICATION_DB_USERNAME}
+      NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:?Set NOTIFICATION_DB_PASSWORD}
+      APP_INTERNAL_TOKEN: ${APP_INTERNAL_TOKEN:?Set APP_INTERNAL_TOKEN}
+      NOTIFICATION_CONSUMER_ENABLED: "true"
+      RABBITMQ_HOST: ${RABBITMQ_HOST:?Set RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:?Set RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD}
+    expose: ["8091"]
+    restart: unless-stopped
+  gateway:
+    build:
+      context: .
+      dockerfile: deploy/microservices/Dockerfile
+      args:
+        JAR_FILE: cloud-warehouse-gateway/target/cloud-warehouse-gateway-1.0-SNAPSHOT.jar
+    environment:
+      NACOS_SERVER_ADDR: ${NACOS_SERVER_ADDR:?Set NACOS_SERVER_ADDR}
+    ports: ["127.0.0.1:8080:8080"]
+    restart: unless-stopped

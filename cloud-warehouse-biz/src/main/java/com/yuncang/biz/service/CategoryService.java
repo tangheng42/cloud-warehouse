@@ -13,6 +13,9 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 维护 SKU 分类；分类下仍有启用 SKU 时禁止停用。
+ */
 @Service
 public class CategoryService {
     private final CategoryMapper mapper;
@@ -56,6 +59,9 @@ public class CategoryService {
         return get(id);
     }
 
+    /**
+     * 锁定分类后变更启用状态；分类下有启用 SKU 时拒绝停用。
+     */
     @Transactional
     public SkuCategory setEnabled(Long id, boolean enabled) {
         SkuCategory category = mapper.findForUpdate(id);

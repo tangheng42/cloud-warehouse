@@ -33,6 +33,7 @@
         WHERE ws.sku_id = #{skuId} ORDER BY ws.warehouse_id
     </select>
 
+    <!-- 行锁须由调用方事务持有到库存业务完成；此查询不返回 SKU 安全库存阈值。 -->
     <select id="findForUpdate"
             resultMap="stockMap">
 
@@ -48,6 +49,7 @@
         FOR UPDATE
 
     </select>
+    <!-- 依赖仓库与 SKU 的唯一约束合并首次入库和库存累加，避免先查后插的竞态。 -->
     <insert id="inboundUpsert">
 
         INSERT INTO warehouse_stock (
@@ -71,6 +73,7 @@
 
     </insert>
 
+    <!-- 库存充足条件与扣减在同一条 SQL 中执行，防止并发预占超卖；影响行数为 0 表示未成功。 -->
     <update id="reserve">
         UPDATE warehouse_stock
 
@@ -82,6 +85,7 @@
         AND available_stock >= #{quantity}
     </update>
 
+    <!-- 仅释放已有锁定库存；实物库存不变，调用方还须校验单据处于可释放状态。 -->
     <update id="release">
         UPDATE warehouse_stock
         SET available_stock = available_stock + #{quantity},
@@ -91,6 +95,7 @@
         AND locked_stock >= #{quantity}
     </update>
 
+    <!-- 可用库存已在预占时扣减，此处仅扣减实物与锁定库存。 -->
     <update id="confirmOutbound">
         UPDATE warehouse_stock
         SET physical_stock = physical_stock - #{quantity},
@@ -100,6 +105,7 @@
         AND physical_stock >= #{quantity}
         AND locked_stock >= #{quantity}
     </update>
+    <!-- 三类库存均匹配快照才允许调整，避免盘点覆盖期间发生的库存变更。 -->
     <update id="adjustStocktake">
         UPDATE warehouse_stock
         SET physical_stock = physical_stock + #{delta},

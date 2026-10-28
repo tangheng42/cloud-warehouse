@@ -12,7 +12,10 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-/** Versioned cache keys prevent a pre-commit read from repopulating the current key after invalidation. */
+/**
+ * 缓存库存详情，并在事务提交后切换缓存版本。
+ * 并发回源即使写回旧数据，也只会写入旧版本的键；Redis 异常时回退数据库。
+ */
 public class RedisStockDetailCache implements StockDetailCache {
     private static final Logger log = LoggerFactory.getLogger(RedisStockDetailCache.class);
     private final StringRedisTemplate redis;
@@ -53,8 +56,7 @@ public class RedisStockDetailCache implements StockDetailCache {
             return databaseLoader.get();
         }
         WarehouseStock stock = databaseLoader.get();
-        // Zero stock has no row. Avoid caching it because a SKU safety-stock update
-        // cannot enumerate warehouse IDs for nonexistent rows.
+        // 无库存行的零库存视图不缓存：修改 SKU 安全库存时，无法枚举这些虚拟仓库组合来失效缓存。
         if (stock.getId() != null) {
             try {
                 redis.opsForValue().set(key, json.writeValueAsString(stock), expiry());
@@ -83,8 +85,7 @@ public class RedisStockDetailCache implements StockDetailCache {
             redis.opsForValue().increment(generationKey(warehouseId, skuId));
             redis.delete(detailKey(warehouseId, skuId, oldGeneration));
         } catch (RuntimeException redisUnavailable) {
-            // The committed MySQL transaction must not become a failed API response.
-            // Cached values are bounded by TTL if Redis recovers after this failure.
+            // 数据库已经提交，缓存失效失败不应将业务响应改为失败；残留缓存由 TTL 到期清理。
             log.warn("库存已提交，但 Redis 失效操作失败；缓存将由 TTL 清理", redisUnavailable);
         }
     }

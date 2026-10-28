@@ -13,6 +13,9 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 维护仓库档案，停用前检查未完成单据，避免中断在途业务。
+ */
 @Service
 public class WarehouseService {
     private final WarehouseMapper mapper;
@@ -58,6 +61,9 @@ public class WarehouseService {
         return get(id);
     }
 
+    /**
+     * 锁定仓库后变更启用状态；存在未完成单据时拒绝停用，重复设置目标状态时报冲突。
+     */
     @Transactional
     public Warehouse setEnabled(Long id, boolean enabled) {
         Warehouse warehouse = mapper.findForUpdate(id);

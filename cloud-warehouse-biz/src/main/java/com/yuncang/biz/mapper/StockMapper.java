@@ -11,6 +11,10 @@ import org.apache.ibatis.annotations.Param;
 public interface StockMapper {
     WarehouseStock findByWarehouseAndSku(@Param("warehouseId") Long warehouseId, @Param("skuId") Long skuId);
 
+    /**
+     * 锁定指定库存行，调用方须处于事务中。
+     * @return 库存行，不含安全库存阈值；不存在时为 null
+     */
     WarehouseStock findForUpdate(
             @Param("warehouseId") Long warehouseId,
             @Param("skuId") Long skuId

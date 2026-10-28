@@ -44,6 +44,11 @@ public class OutboundController {
         this.idempotency = idempotency;
     }
 
+    /**
+     * 创建单据，支持可选的 Idempotency-Key 请求头。
+     * 同一用户、操作和键的相同请求返回已有单据的当前状态；不同请求内容复用该键时报冲突。
+     * 未提供该请求头时，每次调用均按新建处理。
+     */
     @Operation(summary = "创建出库单")
     @PostMapping
     public ResponseEntity<ApiResponse<OutboundVO>> create(@Valid @RequestBody OutboundCreateDTO dto,

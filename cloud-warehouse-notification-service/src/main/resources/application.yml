@@ -1,0 +1,41 @@
+app:
+  internal:
+    token: ${APP_INTERNAL_TOKEN:}
+
+server:
+  # 通知微服务独立监听的端口
+  port: 8091
+
+spring:
+  application:
+    # 注册到 Nacos 的服务名
+    name: yuncang-notification
+
+  cloud:
+    nacos:
+      discovery:
+        # Nacos 注册中心地址
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+  health:
+    rabbit:
+      enabled: false
+
+---
+# 默认保留无数据库演示模式；只有显式启用 notification-mysql 才创建数据源。
+spring:
+  config:
+    activate:
+      on-profile: "!notification-mysql"
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.mybatis.spring.boot.autoconfigure.MybatisAutoConfiguration

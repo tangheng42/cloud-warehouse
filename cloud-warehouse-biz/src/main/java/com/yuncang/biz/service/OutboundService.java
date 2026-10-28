@@ -22,6 +22,10 @@ import com.yuncang.common.PageResult;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 管理出库单从创建、预占到实际出库的状态流转。
+ * 预占将可用库存转为锁定库存；确认出库才扣减实物库存。
+ */
 @Service
 public class OutboundService {
     private final OutboundMapper mapper;
@@ -62,6 +66,9 @@ public class OutboundService {
         return new PageResult<>(orders, page, size, total);
     }
 
+    /**
+     * 创建 CREATED 出库单及明细，不占用库存；仓库和 SKU 必须启用，明细不可重复。
+     */
     @Transactional
     public OutboundOrder create(Long warehouseId, List<OrderItemCommand> items, String remark, Long createdBy) {
         checks.warehouse(warehouseId);
@@ -101,23 +108,25 @@ public class OutboundService {
         return order;
     }
 
+    /**
+     * 对 CREATED 出库单整单预占库存，成功后转为 RESERVED。
+     * 任一 SKU 可用库存不足时整单回滚；实物库存保持不变。
+     */
     @Transactional
     public OutboundOrder reserve(
             Long id,
             Long reservedBy) {
 
-        // 1. 锁住出库单并检查 CREATED
+        // 锁定单据并检查旧状态，防止同一出库单被并发重复预占。
         OutboundOrder order =
                 lockCreatedOrder(id);
 
 
-        // 2. 确认仓库当前仍然启用
+        // 创建后仓库可能已停用，预占前重新校验。
         checks.warehouse(
                 order.getWarehouseId()
         );
 
-
-        // 3. 获取明细
         List<OutboundOrderItem> items =
                 mapper.findItemsByOrderId(id);
 
@@ -129,8 +138,6 @@ public class OutboundService {
                 )
         );
 
-
-        // 4. reserve 时重新检查所有 SKU
         for (OutboundOrderItem item : items) {
 
             checks.sku(
@@ -138,8 +145,6 @@ public class OutboundService {
             );
         }
 
-
-        // 5. 整单预占
         for (OutboundOrderItem item : items) {
 
             Long quantity =
@@ -153,8 +158,6 @@ public class OutboundService {
                             quantity
                     );
 
-
-            // 当前这一刻库存不足
             if (rows != 1) {
 
                 throw BusinessException.conflict(ErrorCode.INSUFFICIENT_AVAILABLE_STOCK,
@@ -162,8 +165,6 @@ public class OutboundService {
                 );
             }
 
-
-            // UPDATE 已经执行，现在读到的是 after
             WarehouseStock stock =
                     stockMapper.findForUpdate(
                             order.getWarehouseId(),
@@ -199,8 +200,6 @@ public class OutboundService {
             long beforeLocked =
                     afterLocked - quantity;
 
-
-            // 6. 写 OUTBOUND_LOCK 流水
             StockFlow flow =
                     new StockFlow();
 
@@ -260,8 +259,6 @@ public class OutboundService {
             stockAlertService.refresh(order.getWarehouseId(), item.getSkuId());
         }
 
-
-        // 7. 整单预占完成
         int rows =
                 mapper.markReserved(
                         id,
@@ -279,30 +276,30 @@ public class OutboundService {
         return get(id);
     }
 
+    /**
+     * 释放 RESERVED 出库单的全部预占，恢复可用库存并回到 CREATED。
+     * 释放不要求仓库或 SKU 仍启用，避免资源停用后库存无法解锁。
+     */
     @Transactional
     public OutboundOrder release(
             Long id,
             Long releasedBy) {
 
-        // 1. 锁出库单，只允许 RESERVED
+        // 释放与确认共用单据行锁，避免同一笔预占被同时释放和扣减。
         OutboundOrder order =
                 lockReservedOrder(id);
 
-
-        // 2. 查询明细
         List<OutboundOrderItem> items =
                 mapper.findItemsByOrderId(id);
 
 
-        // 固定库存操作顺序
+        // 按 SKU ID 固定加锁顺序，降低多明细并发操作的死锁风险。
         items.sort(
                 Comparator.comparing(
                         OutboundOrderItem::getSkuId
                 )
         );
 
-
-        // 3. 整单释放
         for (OutboundOrderItem item : items) {
 
             Long quantity =
@@ -331,8 +328,6 @@ public class OutboundService {
                 );
             }
 
-
-            // 获取 release 后的库存
             WarehouseStock stock =
                     stockMapper.findForUpdate(
                             order.getWarehouseId(),
@@ -369,8 +364,6 @@ public class OutboundService {
             long beforeLocked =
                     afterLocked + quantity;
 
-
-            // 4. OUTBOUND_RELEASE 流水
             StockFlow flow =
                     new StockFlow();
 
@@ -430,8 +423,6 @@ public class OutboundService {
             stockAlertService.refresh(order.getWarehouseId(), item.getSkuId());
         }
 
-
-        // 5. RESERVED → CREATED
         int affected =
                 mapper.markReleased(
                         id,
@@ -468,42 +459,38 @@ public class OutboundService {
         return order;
     }
 
+    /**
+     * 确认 RESERVED 出库单，扣减实物和锁定库存并转为 COMPLETED。
+     * 可用库存已在预占时扣减，此处不再次扣减；流水与状态更新同事务提交。
+     */
     @Transactional
     public OutboundOrder confirm(
             Long id,
             Long confirmedBy) {
 
-        // 1. 锁订单，只允许 RESERVED
+        // 与释放操作串行处理，确保只扣减仍有效的预占。
         OutboundOrder order =
                 lockReservedOrder(id);
 
-
-        // 2. 确认出库时重新检查仓库
         checks.warehouse(
                 order.getWarehouseId()
         );
 
-
-        // 3. 查询订单明细
         List<OutboundOrderItem> items =
                 mapper.findItemsByOrderId(id);
 
 
-        // 固定库存操作顺序，降低死锁风险
+        // 按 SKU ID 固定加锁顺序，降低多明细并发操作的死锁风险。
         items.sort(
                 Comparator.comparing(
                         OutboundOrderItem::getSkuId
                 )
         );
 
-
-        // 4. confirm 时重新检查 SKU 是否仍然启用
         for (OutboundOrderItem item : items) {
             checks.sku(item.getSkuId());
         }
 
-
-        // 5. 真正确认出库
         for (OutboundOrderItem item : items) {
 
             Long quantity =
@@ -534,8 +521,6 @@ public class OutboundService {
                 );
             }
 
-
-            // 6. 查询更新后的库存，也就是 after
             WarehouseStock stock =
                     stockMapper.findForUpdate(
                             order.getWarehouseId(),
@@ -572,8 +557,6 @@ public class OutboundService {
             long beforeLocked =
                     afterLocked + quantity;
 
-
-            // 7. 写 OUTBOUND 流水
             StockFlow flow =
                     new StockFlow();
 
@@ -644,8 +627,6 @@ public class OutboundService {
             stockCache.invalidateAfterCommit(order.getWarehouseId(), item.getSkuId());
         }
 
-
-        // 8. RESERVED → COMPLETED
         int affected =
                 mapper.markCompleted(
                         id,
@@ -664,6 +645,10 @@ public class OutboundService {
         return get(id);
     }
 
+    /**
+     * 取消 CREATED 或 RESERVED 出库单；已预占时在同一事务中先释放库存。
+     * 已完成或已取消的单据拒绝再次取消。
+     */
     @Transactional
     public OutboundOrder cancel(Long id, Long cancelledBy) {
         OutboundOrder order = mapper.findForUpdate(id);

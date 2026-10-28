@@ -12,6 +12,9 @@ import com.yuncang.common.PageResult;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
+/**
+ * 提供库存分页及详情查询，详情可通过缓存读取。
+ */
 @Service
 public class StockQueryService {
     private final StockMapper mapper;
@@ -33,6 +36,10 @@ public class StockQueryService {
         return new PageResult<>(items, page, size, new PageInfo<>(items).getTotal());
     }
 
+    /**
+     * 查询仓库与 SKU 的库存详情。
+     * 数据库回源时，仓库或 SKU 不存在则报错；二者存在但无库存行时返回零库存视图，不创建库存行。
+     */
     public WarehouseStock get(Long warehouseId, Long skuId) {
         return cache.getOrLoad(warehouseId, skuId, () -> loadFromDatabase(warehouseId, skuId));
     }

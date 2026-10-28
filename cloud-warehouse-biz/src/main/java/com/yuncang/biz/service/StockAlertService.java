@@ -9,7 +9,9 @@ import java.time.ZoneOffset;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
-/** Called inside the same transaction as the inventory or safety stock change. */
+/**
+ * 维护低库存预警及状态变化事件。须在库存或安全库存变更的同一事务内调用。
+ */
 @Service
 public class StockAlertService {
     private final StockAlertMapper alerts;
@@ -25,6 +27,10 @@ public class StockAlertService {
         this.eventSink = eventSink;
     }
 
+    /**
+     * 按最新可用库存刷新预警；安全库存大于零且可用库存低于阈值时触发。
+     * 仅首次触发或状态改变时发出事件；无库存行时直接返回。
+     */
     public void refresh(Long warehouseId, Long skuId) {
         WarehouseStock stock = stocks.findByWarehouseAndSku(warehouseId, skuId);
         if (stock == null) return;
@@ -67,9 +73,13 @@ public class StockAlertService {
                 alert.getSafetyStock()));
     }
 
+    /**
+     * 安全库存阈值变更后刷新该 SKU 已有库存行的预警。
+     * 逐行加锁以与库存变更串行执行；调用方须提供事务。
+     */
     public void refreshSku(Long skuId) {
         for (WarehouseStock stock : stocks.listBySku(skuId)) {
-            // Serializes alert changes with inventory changes on this stock row.
+            // 锁住库存行，使预警刷新与该库存行的并发变更串行执行。
             stocks.findForUpdate(stock.getWarehouseId(), skuId);
             refresh(stock.getWarehouseId(), skuId);
         }

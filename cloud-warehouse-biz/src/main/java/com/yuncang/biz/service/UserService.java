@@ -7,6 +7,9 @@ import com.yuncang.common.ErrorCode;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+/**
+ * 验证账号凭据及启用状态，为登录和请求鉴权提供当前用户。
+ */
 @Service
 public class UserService {
     private final UserMapper mapper;
@@ -14,6 +17,10 @@ public class UserService {
 
     public UserService(UserMapper mapper) { this.mapper = mapper; }
 
+    /**
+     * 验证密码并拒绝停用账号；用户名不存在与密码错误使用相同错误提示。
+     * @return 已通过验证的用户实体，包含密码哈希，仅供内部处理，不应直接序列化给客户端
+     */
     public AppUser authenticate(String username, String password) {
         AppUser user = mapper.findByUsername(username);
         if (user == null || !passwordEncoder.matches(password, user.getPasswordHash())) {

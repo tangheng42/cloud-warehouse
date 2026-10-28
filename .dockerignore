@@ -1,0 +1,13 @@
+**
+!deploy/
+!deploy/microservices/
+!deploy/microservices/Dockerfile
+!cloud-warehouse-boot/
+!cloud-warehouse-boot/target/
+!cloud-warehouse-boot/target/cloud-warehouse-boot-1.0-SNAPSHOT.jar
+!cloud-warehouse-notification-service/
+!cloud-warehouse-notification-service/target/
+!cloud-warehouse-notification-service/target/cloud-warehouse-notification-service-1.0-SNAPSHOT.jar
+!cloud-warehouse-gateway/
+!cloud-warehouse-gateway/target/
+!cloud-warehouse-gateway/target/cloud-warehouse-gateway-1.0-SNAPSHOT.jar

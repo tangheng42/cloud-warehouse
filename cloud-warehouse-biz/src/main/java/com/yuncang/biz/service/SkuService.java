@@ -15,6 +15,9 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 维护 SKU 档案及启停约束；安全库存变更时同步刷新已有库存行的预警。
+ */
 @Service
 public class SkuService {
     private final SkuMapper mapper;
@@ -67,6 +70,9 @@ public class SkuService {
         return get(sku.getId());
     }
 
+    /**
+     * 更新 SKU 档案及安全库存，并在同一事务中刷新相关库存预警；分类必须启用。
+     */
     @Transactional
     public Sku update(Long id, String name, Long categoryId, String unit, Long safetyStock) {
         Sku sku = get(id);
@@ -80,6 +86,10 @@ public class SkuService {
         return get(id);
     }
 
+    /**
+     * 变更 SKU 启用状态；启用时分类必须可用，停用时不得存在未完成单据。
+     * 已处于目标状态时抛出状态冲突。
+     */
     @Transactional
     public Sku setEnabled(Long id, boolean enabled) {
         Sku sku = mapper.findForUpdate(id);

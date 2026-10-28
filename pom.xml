@@ -14,6 +14,8 @@
         <module>cloud-warehouse-common</module>
         <module>cloud-warehouse-biz</module>
         <module>cloud-warehouse-boot</module>
+        <module>cloud-warehouse-notification-service</module>
+        <module>cloud-warehouse-gateway</module>
     </modules>
 
     <properties>
@@ -23,6 +25,11 @@
         <mybatis-spring-boot.version>3.0.5</mybatis-spring-boot.version>
         <pagehelper.version>2.1.1</pagehelper.version>
         <maven.compiler.release>${java.version}</maven.compiler.release>
+        <!-- Spring Cloud 依赖版本 -->
+        <spring-cloud.version>2025.0.3</spring-cloud.version>
+
+        <!-- Spring Cloud Alibaba 依赖版本 -->
+        <spring-cloud-alibaba.version>2025.0.0.0</spring-cloud-alibaba.version>
     </properties>
 
     <dependencyManagement>
@@ -53,6 +60,24 @@
                 <groupId>com.github.pagehelper</groupId>
                 <artifactId>pagehelper-spring-boot-starter</artifactId>
                 <version>${pagehelper.version}</version>
+            </dependency>
+
+            <!-- Spring Cloud 统一版本管理 -->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Spring Cloud Alibaba 统一版本管理 -->
+            <dependency>
+                <groupId>com.alibaba.cloud</groupId>
+                <artifactId>spring-cloud-alibaba-dependencies</artifactId>
+                <version>${spring-cloud-alibaba.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>

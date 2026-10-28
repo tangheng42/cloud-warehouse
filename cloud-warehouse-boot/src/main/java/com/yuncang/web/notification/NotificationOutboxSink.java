@@ -9,6 +9,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
+/**
+ * 在库存业务事务中保存预警事件到发件箱，由后台发布器负责实际发送。
+ * 调用方须保持预警变更与发件箱插入处于同一事务，避免通知与库存不一致。
+ */
 @Component
 @ConditionalOnProperty(name = "app.notifications.enabled", havingValue = "true")
 public class NotificationOutboxSink implements StockAlertEventSink {

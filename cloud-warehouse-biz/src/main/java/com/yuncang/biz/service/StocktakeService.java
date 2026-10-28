@@ -21,6 +21,10 @@ import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 管理库存盘点快照与差异调整。
+ * 确认前核对三类库存均未偏离创建时快照，避免覆盖盘点期间的出入库变化。
+ */
 @Service
 public class StocktakeService {
     private final StocktakeMapper mapper;
@@ -58,6 +62,10 @@ public class StocktakeService {
         return new PageResult<>(orders, page, size, total);
     }
 
+    /**
+     * 创建 DRAFT 盘点单并保存当前实物、可用、锁定库存快照，不调整库存。
+     * 每个 SKU 必须存在库存行，且同一单据不可重复。
+     */
     @Transactional
     public StocktakeOrder create(Long warehouseId, List<StocktakeItemCommand> items,
             String remark, Long createdBy) {
@@ -95,6 +103,11 @@ public class StocktakeService {
         return get(order.getId());
     }
 
+    /**
+     * 确认 DRAFT 盘点单，按实盘数量调整实物和可用库存，保留锁定库存。
+     * 库存偏离快照或实盘数量低于锁定库存时拒绝确认；全部明细同事务处理。
+     * 差异为零的明细不产生调整流水。
+     */
     @Transactional
     public StocktakeOrder confirm(Long id, Long confirmedBy) {
         StocktakeOrder order = mapper.findForUpdate(id);
@@ -135,6 +148,9 @@ public class StocktakeService {
         return get(id);
     }
 
+    /**
+     * 仅取消 DRAFT 盘点单，不修改库存；不存在或状态冲突时抛出业务异常。
+     */
     @Transactional
     public StocktakeOrder cancel(Long id, Long cancelledBy) {
         if (mapper.cancel(id, cancelledBy) == 0) {

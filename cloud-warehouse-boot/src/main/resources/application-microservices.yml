@@ -1,0 +1,26 @@
+# Activate together with mysql. Local notification reader/consumer are excluded by this profile.
+spring:
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+app:
+  notifications:
+    enabled: true
+  internal:
+    token: ${APP_INTERNAL_TOKEN}
+resilience4j:
+  circuitbreaker:
+    instances:
+      notificationQuery:
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 10
+  ratelimiter:
+    instances:
+      notificationQueryLimiter:
+        limitForPeriod: ${NOTIFICATION_QUERY_RATE:100}
+        limitRefreshPeriod: 1s
+  bulkhead:
+    instances:
+      notificationQueryBulkhead:
+        maxConcurrentCalls: ${NOTIFICATION_QUERY_CONCURRENCY:20}

@@ -7,6 +7,7 @@ public enum ErrorCode {
     FORBIDDEN("无权执行该操作", 403),
     NOT_FOUND("请求资源不存在", 404),
     INTERNAL_ERROR("服务暂不可用", 500),
+    NOTIFICATION_SERVICE_UNAVAILABLE("通知服务暂不可用", 503),
     INVALID_CREDENTIALS("用户名或密码错误", 401),
     USER_DISABLED("用户已停用", 403),
     DUPLICATE_CODE("编码已存在", 409),
@@ -21,7 +22,8 @@ public enum ErrorCode {
     STOCK_SNAPSHOT_CHANGED("库存快照已变化", 409),
     COUNT_BELOW_LOCKED("实盘数量不能低于锁定库存", 409),
     STOCK_BUSY("库存操作繁忙，请重试", 409),
-    IDEMPOTENCY_KEY_CONFLICT("同一幂等键不能用于不同请求", 409);
+    IDEMPOTENCY_KEY_CONFLICT("同一幂等键不能用于不同请求", 409),
+    NOTIFICATION_RATE_LIMITED("通知查询过于频繁，请稍后重试", 429);
 
     private final String code;
     private final String defaultMessage;
